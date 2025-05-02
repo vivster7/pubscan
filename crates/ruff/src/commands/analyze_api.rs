@@ -69,27 +69,13 @@ pub(crate) fn analyze_api(
         anyhow::bail!("Target path does not exist: {}", args.target_path.display());
     }
 
-    println!("Target path: {}", args.target_path.display());
-
     // Determine target boundary
     let target_boundary = determine_target_boundary(&args.target_path)?;
 
-    println!("Target boundary contains {} files", target_boundary.len());
-    for file in &target_boundary {
-        println!("Target boundary file: {}", file.display());
-    }
-
     // Find all Python files in the project (including the target)
-    let project_root = args
-        .target_path
-        .parent()
-        .and_then(|p| p.parent()) // Go up one more level
-        .unwrap_or(&args.target_path)
-        .to_path_buf();
+    let project_root = detect_project_root(&args.target_path)?;
 
-    println!("Project root: {}", project_root.display());
-
-    let files = resolve_default_files(vec![project_root], false);
+    let files = resolve_default_files(vec![project_root.clone()], false);
     let (paths, resolver) = python_files_in_path(&files, &pyproject_config, config_arguments)?;
 
     if paths.is_empty() {
@@ -108,10 +94,8 @@ pub(crate) fn analyze_api(
             // Determine if this file is within the target boundary
             if is_file_within_target(&path, &target_boundary) {
                 target_files.push((path.clone(), resolved_file));
-                println!("Target file: {}", path.display());
             } else {
                 external_files.push((path.clone(), resolved_file));
-                println!("External file: {}", path.display());
             }
         }
     }
@@ -142,6 +126,47 @@ pub(crate) fn analyze_api(
     output_results(&public_api, &args)?;
 
     Ok(ExitStatus::Success)
+}
+
+/// Determine the project root by looking for pyproject.toml or package markers
+fn detect_project_root(target_path: &PathBuf) -> Result<PathBuf> {
+    let mut current_dir = if target_path.is_file() {
+        target_path.parent().map(|p| p.to_path_buf())
+    } else {
+        Some(target_path.clone())
+    };
+
+    // Walk up the directory tree looking for project markers
+    while let Some(dir) = current_dir {
+        // Check for pyproject.toml
+        let pyproject_path = dir.join("pyproject.toml");
+        if pyproject_path.exists() {
+            return Ok(dir);
+        }
+
+        // Check for setup.py or setup.cfg (common Python project markers)
+        let setup_py_path = dir.join("setup.py");
+        let setup_cfg_path = dir.join("setup.cfg");
+        if setup_py_path.exists() || setup_cfg_path.exists() {
+            return Ok(dir);
+        }
+
+        // Check for src directory with __init__.py (common Python project structure)
+        let src_init_path = dir.join("src").join("__init__.py");
+        if src_init_path.exists() {
+            return Ok(dir);
+        }
+
+        // Move up to parent directory
+        current_dir = dir.parent().map(|p| p.to_path_buf());
+    }
+
+    // If no project markers found, default to the parent directory of the target
+    Ok(if target_path.is_file() {
+        target_path.parent().unwrap_or(Path::new(".")).to_path_buf()
+    } else {
+        target_path.clone()
+    })
 }
 
 /// Determine the boundary of the target module/package
@@ -382,16 +407,6 @@ fn analyze_external_usage(
     external_files: &[(PathBuf, ResolvedFile)],
     _resolver: &Resolver,
 ) -> Result<Vec<ApiSymbol>> {
-    println!(
-        "Analyzing external usage for {} candidate symbols in {} files",
-        candidates.len(),
-        external_files.len()
-    );
-    println!(
-        "Candidate symbols: {}",
-        candidates.keys().cloned().collect::<Vec<_>>().join(", ")
-    );
-
     // Track usage of our public API symbols
     let mut usage_counts: HashMap<String, (usize, HashSet<PathBuf>)> = candidates
         .iter()
@@ -432,16 +447,10 @@ fn analyze_external_usage(
         "unknown".to_string()
     };
 
-    println!("Target module name: {}", target_module_name);
-
     // Analyze each external file for imports and usage
     for (path, resolved_file) in external_files {
-        println!("Processing external file: {}", path.display());
-
         // Read and parse the file content
         let file_content = std::fs::read_to_string(resolved_file.path())?;
-        println!("File content: \n{}", file_content);
-
         let parsed = ruff_python_parser::parse_module(&file_content);
 
         if let Ok(parsed) = parsed {
@@ -467,12 +476,10 @@ fn analyze_external_usage(
                         // Handle direct imports
                         for alias in &import.names {
                             let module_name = alias.name.as_str();
-                            println!("  Import: {}", module_name);
 
                             // Track module imports and their aliases
                             if let Some(asname) = &alias.asname {
                                 file_modules.insert(asname.to_string(), module_name.to_string());
-                                println!("    Aliased as: {}", asname);
                             } else {
                                 file_modules
                                     .insert(module_name.to_string(), module_name.to_string());
@@ -481,14 +488,9 @@ fn analyze_external_usage(
                             // Identify the module name without path
                             let simple_module_name =
                                 module_name.split('.').next().unwrap_or(module_name);
-                            println!("    Simple module name: {}", simple_module_name);
 
                             // Check if this module being imported is our target module
                             if simple_module_name == target_module_name {
-                                println!(
-                                    "    Found import of target module: {}",
-                                    target_module_name
-                                );
                                 // Mark the module itself as imported from our target
                                 file_imported.insert(module_name.to_string());
                             }
@@ -497,21 +499,12 @@ fn analyze_external_usage(
                             if candidates.contains_key(simple_module_name)
                                 && !file_processed.contains(simple_module_name)
                             {
-                                println!(
-                                    "    Found candidate module import: {}",
-                                    simple_module_name
-                                );
                                 if let Some(entry) = usage_counts.get_mut(simple_module_name) {
                                     entry.0 += 1;
                                     entry.1.insert(path.clone());
                                     file_processed.insert(simple_module_name.to_string());
                                     // Track this symbol as being imported from our target
                                     file_imported.insert(module_name.to_string());
-                                    println!(
-                                        "    Counted module import for: {}",
-                                        simple_module_name
-                                    );
-                                    println!("    Tracking module import: {}", module_name);
                                 }
                             }
                         }
@@ -521,7 +514,6 @@ fn analyze_external_usage(
                         if let Some(module_name) = &import_from.module {
                             // When importing a module with "from", track what was imported
                             let module_name_str = module_name.to_string();
-                            println!("  From import: {}", module_name_str);
 
                             // Check if this is an import from our target module
                             let simple_module_name = module_name_str
@@ -530,21 +522,12 @@ fn analyze_external_usage(
                                 .unwrap_or(&module_name_str);
                             let is_target_module = simple_module_name == target_module_name;
 
-                            if is_target_module {
-                                println!(
-                                    "    Importing from target module: {}",
-                                    target_module_name
-                                );
-                            }
-
                             for alias in &import_from.names {
                                 let name = alias.name.as_str();
-                                println!("    Symbol: {}", name);
 
                                 // Handle "from pkg1 import pkg2" case
                                 if let Some(asname) = &alias.asname {
                                     file_modules.insert(asname.to_string(), name.to_string());
-                                    println!("      Aliased as: {}", asname);
                                 } else {
                                     file_modules.insert(name.to_string(), name.to_string());
                                 }
@@ -552,17 +535,14 @@ fn analyze_external_usage(
                                 // If this is an import from our target module, add it to the imported_symbols
                                 if is_target_module {
                                     file_imported.insert(name.to_string());
-                                    println!("      Importing {} from target module", name);
                                 }
 
                                 // Check if the imported symbol is in our candidates
                                 if candidates.contains_key(name) && !file_processed.contains(name) {
-                                    println!("      Found candidate symbol import: {}", name);
                                     if let Some(entry) = usage_counts.get_mut(name) {
                                         entry.0 += 1;
                                         entry.1.insert(path.clone());
                                         file_processed.insert(name.to_string());
-                                        println!("      Counted symbol import for: {}", name);
                                     }
                                 }
                             }
@@ -570,17 +550,6 @@ fn analyze_external_usage(
                     }
                     _ => {}
                 }
-            }
-
-            // After processing all imports, show what's being tracked
-            println!("  Tracked modules for this file:");
-            for (alias, actual) in file_modules.iter() {
-                println!("    {}: {}", alias, actual);
-            }
-
-            println!("  Tracked imported symbols for this file:");
-            for symbol in file_imported.iter() {
-                println!("    {}", symbol);
             }
 
             // Scan for attribute accesses to find module.symbol patterns
@@ -596,19 +565,6 @@ fn analyze_external_usage(
                     &target_module_name,
                 );
             }
-        }
-    }
-
-    // Print resulting usage counts
-    println!("Symbol usage counts:");
-    for (symbol, (count, importers)) in &usage_counts {
-        if *count > 0 {
-            println!(
-                "  Symbol '{}' used {} times in {} files",
-                symbol,
-                count,
-                importers.len()
-            );
         }
     }
 
@@ -1032,26 +988,15 @@ fn scan_expr_for_attribute_access(
             // Check if this is a module.symbol pattern
             if let ast::Expr::Name(name) = &attr.value.as_ref() {
                 let module_alias = name.id.as_str();
-                println!(
-                    "  Attribute access: {}.{}",
-                    module_alias,
-                    attr.attr.as_str()
-                );
 
                 // If this is a module we've imported
                 if module_imports.contains_key(module_alias) {
                     let accessed_attr = attr.attr.as_str();
-                    println!(
-                        "    Found module attribute access: {}.{}",
-                        module_alias, accessed_attr
-                    );
 
                     // Check if this symbol is in our candidates
                     if candidates.contains_key(accessed_attr)
                         && !file_processed.contains(accessed_attr)
                     {
-                        println!("    Candidate symbol found: {}", accessed_attr);
-
                         // Check if the module is our target module or an alias to it
                         let is_target_module =
                             if let Some(actual_module) = module_imports.get(module_alias) {
@@ -1063,15 +1008,11 @@ fn scan_expr_for_attribute_access(
                             };
 
                         if is_target_module {
-                            println!("    Module {} is our target module", module_alias);
                             if let Some(entry) = usage_counts.get_mut(accessed_attr) {
                                 entry.0 += 1;
                                 entry.1.insert(file_path.clone());
                                 file_processed.insert(accessed_attr.to_string());
-                                println!("    Counted attribute access for: {}", accessed_attr);
                             }
-                        } else {
-                            println!("    Module {} is NOT our target module", module_alias);
                         }
                     }
                 }
@@ -1554,4 +1495,78 @@ fn output_results(public_api: &[ApiSymbol], args: &AnalyzeApiArgs) -> Result<()>
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs::{self, File};
+    use tempfile::tempdir;
+
+    #[test]
+    fn test_detect_project_root_pyproject() -> Result<()> {
+        let temp_dir = tempdir()?;
+        let project_dir = temp_dir.path().join("my_project");
+        fs::create_dir_all(&project_dir)?;
+
+        // Create a pyproject.toml file
+        let pyproject_path = project_dir.join("pyproject.toml");
+        File::create(&pyproject_path)?;
+
+        // Create a Python file
+        let module_dir = project_dir.join("src");
+        fs::create_dir_all(&module_dir)?;
+        let module_path = module_dir.join("module.py");
+        File::create(&module_path)?;
+
+        // Test with target path as the module
+        let root = detect_project_root(&module_path.to_path_buf())?;
+        assert_eq!(root, project_dir);
+
+        // Test with target path as the project dir
+        let root = detect_project_root(&project_dir.to_path_buf())?;
+        assert_eq!(root, project_dir);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_detect_project_root_setup_py() -> Result<()> {
+        let temp_dir = tempdir()?;
+        let project_dir = temp_dir.path().join("my_project");
+        fs::create_dir_all(&project_dir)?;
+
+        // Create a setup.py file
+        let setup_path = project_dir.join("setup.py");
+        File::create(&setup_path)?;
+
+        // Create a Python file
+        let module_dir = project_dir.join("src");
+        fs::create_dir_all(&module_dir)?;
+        let module_path = module_dir.join("module.py");
+        File::create(&module_path)?;
+
+        // Test with target path as the module
+        let root = detect_project_root(&module_path.to_path_buf())?;
+        assert_eq!(root, project_dir);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_detect_project_root_fallback() -> Result<()> {
+        let temp_dir = tempdir()?;
+        let project_dir = temp_dir.path().join("my_project");
+        fs::create_dir_all(&project_dir)?;
+
+        // Create a Python file with no project markers
+        let module_path = project_dir.join("module.py");
+        File::create(&module_path)?;
+
+        // Test with target path as the module
+        let root = detect_project_root(&module_path.to_path_buf())?;
+        assert_eq!(root, project_dir); // Should resolve to parent directory
+
+        Ok(())
+    }
 }

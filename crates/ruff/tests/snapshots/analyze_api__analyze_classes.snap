@@ -5,12 +5,13 @@ info:
   args:
     - analyze
     - api
-    - /tmp/.tmpNRHPui/mypackage/models.py
+    - /tmp/.tmp0h5wKc/mypackage/models.py
 ---
 success: true
 exit_code: 0
 ----- stdout -----
 Analyzing API for: [TEMPDIR]/mypackage/models.py
+Found 1 target files and 4 external files
 No public API symbols found with external usage.
 
 ----- stderr -----
