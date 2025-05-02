@@ -1,0 +1,41 @@
+---
+source: crates/ruff/tests/analyze_api_nested.rs
+info:
+  program: ruff
+  args:
+    - analyze
+    - api
+    - /tmp/.tmp2Tp8qP/src/pkg1/pkg2/__init__.py
+---
+success: true
+exit_code: 0
+----- stdout -----
+Public API for [TEMPDIR]/src/pkg1/pkg2/__init__.py:
+
+CLASS:
+  SampleClass (1 external usages, public)
+    Fully qualified: src.pkg1.pkg2.SampleClass
+    This is a sample class
+    Location: [TEMPDIR]/src/pkg1/pkg2/__init__.py
+    Imported by: [TEMPDIR]/client/__init__.py
+
+FUNCTION:
+  some_function (1 external usages, public)
+    Fully qualified: src.pkg1.pkg2.some_function
+    This is a sample function
+    Location: [TEMPDIR]/src/pkg1/pkg2/__init__.py
+    Imported by: [TEMPDIR]/client/__init__.py
+
+VARIABLE:
+  SOME_CONSTANT (2 external usages, public)
+    Fully qualified: src.pkg1.pkg2.SOME_CONSTANT
+    Location: [TEMPDIR]/src/pkg1/pkg2/__init__.py
+    Imported by: [TEMPDIR]/client/__init__.py
+
+Found 3 public API symbols with external usage.
+
+----- stderr -----
+[TIMESTAMP][ruff::commands::analyze_api][INFO] Analyzing API for: [TEMPDIR]/src/pkg1/pkg2/__init__.py
+[TIMESTAMP][ruff::commands::analyze_api][INFO] Using parallel processing for file analysis
+[TIMESTAMP][ruff::commands::analyze_api][INFO] Using parallel processing for file analysis
+[TIMESTAMP][ruff::commands::analyze_api][INFO] Auto-detected project root: [TEMPDIR]

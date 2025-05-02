@@ -1,0 +1,22 @@
+---
+source: crates/ruff/tests/analyze_api.rs
+info:
+  program: ruff
+  args:
+    - analyze
+    - api
+    - /var/folders/4z/61xpg3dn54n92mwgk9864ydw0000gn/T/.tmpPSyqdk/mypackage
+    - "--output-format=json"
+---
+success: true
+exit_code: 0
+----- stdout -----
+{
+  "public_api": [],
+[TEMPDIR]/mypackage"
+}
+
+----- stderr -----
+[TEMPDIR]/mypackage
+[TIMESTAMP][ruff::commands::analyze_api][INFO] Using parallel processing for file analysis
+[TEMPDIR]/mypackage

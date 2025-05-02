@@ -1,0 +1,33 @@
+---
+source: crates/ruff/tests/analyze_api.rs
+info:
+  program: ruff
+  args:
+    - analyze
+    - api
+    - /var/folders/4z/61xpg3dn54n92mwgk9864ydw0000gn/T/.tmpCsx2Jc/mypackage/core.py
+---
+success: true
+exit_code: 0
+----- stdout -----
+[TEMPDIR]/mypackage/core.py:
+
+FUNCTION:
+  add (1 external usages, public)
+    Fully qualified: mypackage.core.add
+    Add two numbers.
+[TEMPDIR]/mypackage/core.py
+[TEMPDIR]/mypackage/utils.py
+
+  multiply (1 external usages, public)
+    Fully qualified: mypackage.core.multiply
+    Multiply two numbers.
+[TEMPDIR]/mypackage/core.py
+[TEMPDIR]/mypackage/utils.py
+
+Found 2 public API symbols with external usage.
+
+----- stderr -----
+[TEMPDIR]/mypackage/core.py
+[TIMESTAMP][ruff::commands::analyze_api][INFO] Using parallel processing for file analysis
+[TEMPDIR]/mypackage

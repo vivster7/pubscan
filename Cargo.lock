@@ -2586,6 +2586,7 @@ dependencies = [
  "ruff_python_ast",
  "ruff_python_formatter",
  "ruff_python_parser",
+ "ruff_python_semantic",
  "ruff_server",
  "ruff_source_file",
  "ruff_text_size",
@@ -2618,6 +2619,25 @@ dependencies = [
  "toml",
  "tryfn",
  "unicode-width 0.2.0",
+]
+
+[[package]]
+name = "ruff_api_analyzer"
+version = "0.1.3"
+dependencies = [
+ "anyhow",
+ "clap",
+ "colored 3.0.0",
+ "env_logger",
+ "log",
+ "rayon",
+ "ruff",
+ "ruff_linter",
+ "ruff_python_ast",
+ "ruff_workspace",
+ "serde",
+ "serde_json",
+ "walkdir",
 ]
 
 [[package]]

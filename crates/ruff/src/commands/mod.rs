@@ -1,6 +1,7 @@
 pub(crate) mod completions;
 
 pub(crate) mod add_noqa;
+pub mod analyze_api;
 pub(crate) mod analyze_graph;
 pub(crate) mod check;
 pub(crate) mod check_stdin;
