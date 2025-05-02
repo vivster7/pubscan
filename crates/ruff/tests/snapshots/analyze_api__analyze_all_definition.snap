@@ -1,0 +1,16 @@
+---
+source: crates/ruff/tests/analyze_api.rs
+info:
+  program: ruff
+  args:
+    - analyze
+    - api
+    - /tmp/.tmpwYUl4E/mypackage/config.py
+---
+success: true
+exit_code: 0
+----- stdout -----
+Analyzing API for: [TEMPDIR]/mypackage/config.py
+No public API symbols found with external usage.
+
+----- stderr -----

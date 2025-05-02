@@ -154,6 +154,10 @@ pub enum Command {
 pub enum AnalyzeCommand {
     /// Generate a map of Python file dependencies or dependents.
     Graph(AnalyzeGraphCommand),
+
+    /// Analyze a Python module or package to determine its effective public API.
+    #[clap(name = "api")]
+    Api(AnalyzeApiCommand),
 }
 
 #[derive(Clone, Debug, clap::Parser)]
@@ -180,6 +184,38 @@ pub struct AnalyzeGraphCommand {
     /// Path to a virtual environment to use for resolving additional dependencies
     #[arg(long)]
     python: Option<PathBuf>,
+}
+
+/// Analyze a Python module or package to determine its effective public API based on actual usage.
+#[derive(Debug, clap::Args)]
+pub struct AnalyzeApiCommand {
+    /// The path to the Python module (.py file) or package (directory) to analyze.
+    #[clap()]
+    pub target: PathBuf,
+
+    /// The output format to use.
+    #[clap(long = "output-format", short = 'o', value_enum)]
+    pub output_format: Option<String>,
+
+    /// The path to the Python executable to use for venv parsing.
+    #[clap(long = "python")]
+    pub python: Option<PathBuf>,
+
+    /// Enable preview features.
+    #[clap(long)]
+    pub preview: bool,
+
+    /// Disable preview features.
+    #[clap(long, conflicts_with = "preview")]
+    pub no_preview: bool,
+
+    /// Enable detection of string imports (imports constructed as strings, often with variable interpolation).
+    #[clap(long)]
+    pub detect_string_imports: bool,
+
+    /// The Python version to target.
+    #[clap(long, value_name = "VERSION", value_enum)]
+    pub target_version: Option<PythonVersion>,
 }
 
 // The `Parser` derive is for ruff_dev, for ruff `Args` would be sufficient
@@ -721,32 +757,31 @@ impl CheckCommand {
 
         let cli_overrides = ExplicitConfigOverrides {
             dummy_variable_rgx: self.dummy_variable_rgx,
-            exclude: self.exclude,
             extend_exclude: self.extend_exclude,
             extend_fixable: self.extend_fixable,
             extend_ignore: self.extend_ignore,
-            extend_per_file_ignores: self.extend_per_file_ignores,
             extend_select: self.extend_select,
             extend_unfixable: self.extend_unfixable,
+            extend_per_file_ignores: self.extend_per_file_ignores,
+            exclude: self.exclude,
+            fix: resolve_bool_arg(self.fix, self.no_fix).map(bool::into),
+            fix_only: resolve_bool_arg(self.fix_only, self.no_fix_only).map(bool::into),
             fixable: self.fixable,
             ignore: self.ignore,
-            line_length: self.line_length,
             per_file_ignores: self.per_file_ignores,
             preview: resolve_bool_arg(self.preview, self.no_preview).map(PreviewMode::from),
+            line_length: self.line_length,
             respect_gitignore: resolve_bool_arg(self.respect_gitignore, self.no_respect_gitignore),
             select: self.select,
-            target_version: self.target_version.map(ast::PythonVersion::from),
-            unfixable: self.unfixable,
-            // TODO(charlie): Included in `pyproject.toml`, but not inherited.
-            cache_dir: self.cache_dir,
-            fix: resolve_bool_arg(self.fix, self.no_fix),
-            fix_only: resolve_bool_arg(self.fix_only, self.no_fix_only),
             unsafe_fixes: resolve_bool_arg(self.unsafe_fixes, self.no_unsafe_fixes)
                 .map(UnsafeFixes::from),
             force_exclude: resolve_bool_arg(self.force_exclude, self.no_force_exclude),
             output_format: self.output_format,
             show_fixes: resolve_bool_arg(self.show_fixes, self.no_show_fixes),
             extension: self.extension,
+            target_version: self.target_version.map(ast::PythonVersion::from),
+            unfixable: self.unfixable,
+            cache_dir: self.cache_dir,
             ..ExplicitConfigOverrides::default()
         };
 
@@ -799,6 +834,35 @@ impl AnalyzeGraphCommand {
         let format_arguments = AnalyzeGraphArgs {
             files: self.files,
             direction: self.direction,
+            python: self.python,
+        };
+
+        let cli_overrides = ExplicitConfigOverrides {
+            detect_string_imports: if self.detect_string_imports {
+                Some(true)
+            } else {
+                None
+            },
+            preview: resolve_bool_arg(self.preview, self.no_preview).map(PreviewMode::from),
+            target_version: self.target_version.map(ast::PythonVersion::from),
+            ..ExplicitConfigOverrides::default()
+        };
+
+        let config_args = ConfigArguments::from_cli_arguments(global_options, cli_overrides)?;
+        Ok((format_arguments, config_args))
+    }
+}
+
+impl AnalyzeApiCommand {
+    /// Partition the CLI into command-line arguments and configuration
+    /// overrides.
+    pub fn partition(
+        self,
+        global_options: GlobalConfigArgs,
+    ) -> anyhow::Result<(AnalyzeApiArgs, ConfigArguments)> {
+        let format_arguments = AnalyzeApiArgs {
+            target_path: self.target,
+            output_format: self.output_format,
             python: self.python,
         };
 
@@ -1268,6 +1332,14 @@ pub struct AnalyzeGraphArgs {
     pub python: Option<PathBuf>,
 }
 
+/// Arguments for the `analyze api` command.
+#[derive(Debug)]
+pub struct AnalyzeApiArgs {
+    pub target_path: PathBuf,
+    pub output_format: Option<String>,
+    pub python: Option<PathBuf>,
+}
+
 /// Configuration overrides provided via dedicated CLI flags:
 /// `--line-length`, `--respect-gitignore`, etc.
 #[derive(Clone, Default)]
@@ -1405,4 +1477,30 @@ pub fn collect_per_file_ignores(pairs: Vec<PatternPrefixPair>) -> Vec<PerFileIgn
         .into_iter()
         .map(|(pattern, prefixes)| PerFileIgnore::new(pattern, &prefixes, None))
         .collect()
+}
+
+impl From<&AnalyzeCommand> for AnalyzeGraphArgs {
+    fn from(command: &AnalyzeCommand) -> Self {
+        match command {
+            AnalyzeCommand::Graph(graph) => Self {
+                files: graph.files.clone(),
+                python: graph.python.clone(),
+                direction: graph.direction,
+            },
+            _ => panic!("Expected Graph command"),
+        }
+    }
+}
+
+impl From<&AnalyzeCommand> for AnalyzeApiArgs {
+    fn from(command: &AnalyzeCommand) -> Self {
+        match command {
+            AnalyzeCommand::Api(api) => Self {
+                target_path: api.target.clone(),
+                output_format: api.output_format.clone(),
+                python: api.python.clone(),
+            },
+            _ => panic!("Expected Api command"),
+        }
+    }
 }

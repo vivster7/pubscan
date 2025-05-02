@@ -1,0 +1,16 @@
+---
+source: crates/ruff/tests/analyze_api_nested.rs
+info:
+  program: ruff
+  args:
+    - analyze
+    - api
+    - /tmp/.tmp6ImPsg/src/pkg1/pkg2/__init__.py
+---
+success: true
+exit_code: 0
+----- stdout -----
+Analyzing API for: [TEMPDIR]/src/pkg1/pkg2/__init__.py
+No public API symbols found with external usage.
+
+----- stderr -----
