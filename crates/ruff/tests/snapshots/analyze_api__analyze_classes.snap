@@ -1,0 +1,16 @@
+---
+source: crates/ruff/tests/analyze_api.rs
+info:
+  program: ruff
+  args:
+    - analyze
+    - api
+    - /tmp/.tmpNRHPui/mypackage/models.py
+---
+success: true
+exit_code: 0
+----- stdout -----
+Analyzing API for: [TEMPDIR]/mypackage/models.py
+No public API symbols found with external usage.
+
+----- stderr -----
