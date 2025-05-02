@@ -1,0 +1,29 @@
+---
+source: crates/ruff/tests/analyze_api.rs
+info:
+  program: ruff
+  args:
+    - analyze
+    - api
+    - /tmp/.tmp1n7xtU/mypackage/core.py
+---
+success: true
+exit_code: 0
+----- stdout -----
+Analyzing API for: [TEMPDIR]/mypackage/core.py
+Public API for [TEMPDIR]/mypackage/core.py:
+
+FUNCTION:
+  add (1 external usages, public)
+    Add two numbers.
+    Location: [TEMPDIR]/mypackage/core.py
+    Imported by: [TEMPDIR]/mypackage/utils.py
+
+  multiply (1 external usages, public)
+    Multiply two numbers.
+    Location: [TEMPDIR]/mypackage/core.py
+    Imported by: [TEMPDIR]/mypackage/utils.py
+
+Found 2 public API symbols with external usage.
+
+----- stderr -----

@@ -13,17 +13,16 @@ use colored::Colorize;
 use log::warn;
 use notify::{recommended_watcher, RecursiveMode, Watcher};
 
-use args::{GlobalConfigArgs, ServerCommand};
+use args::{
+    AnalyzeApiCommand, AnalyzeCommand, AnalyzeGraphCommand, Args,
+    CheckCommand, Command, FormatCommand, GlobalConfigArgs, ServerCommand,
+};
+use printer::{Flags as PrinterFlags, Printer};
 use ruff_linter::logging::{set_up_logging, LogLevel};
 use ruff_linter::settings::flags::FixMode;
 use ruff_linter::settings::types::OutputFormat;
 use ruff_linter::{fs, warn_user, warn_user_once};
 use ruff_workspace::Settings;
-
-use crate::args::{
-    AnalyzeCommand, AnalyzeGraphCommand, Args, CheckCommand, Command, FormatCommand,
-};
-use crate::printer::{Flags as PrinterFlags, Printer};
 
 pub mod args;
 mod cache;
@@ -199,7 +198,10 @@ pub fn run(
         Command::Check(args) => check(args, global_options),
         Command::Format(args) => format(args, global_options),
         Command::Server(args) => server(args),
-        Command::Analyze(AnalyzeCommand::Graph(args)) => analyze_graph(args, global_options),
+        Command::Analyze(analyze_command) => match analyze_command {
+            AnalyzeCommand::Graph(args) => analyze_graph(args, global_options),
+            AnalyzeCommand::Api(args) => analyze_api(args, global_options),
+        },
     }
 }
 
@@ -220,6 +222,12 @@ fn analyze_graph(
     let (cli, config_arguments) = args.partition(global_options)?;
 
     commands::analyze_graph::analyze_graph(cli, &config_arguments)
+}
+
+fn analyze_api(args: AnalyzeApiCommand, global_options: GlobalConfigArgs) -> Result<ExitStatus> {
+    let (cli, config_arguments) = args.partition(global_options)?;
+
+    commands::analyze_api::analyze_api(cli, &config_arguments)
 }
 
 fn server(args: ServerCommand) -> Result<ExitStatus> {
