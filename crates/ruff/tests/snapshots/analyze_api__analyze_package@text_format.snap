@@ -5,36 +5,13 @@ info:
   args:
     - analyze
     - api
-    - /tmp/.tmpgtZqaD/mypackage
+    - /tmp/.tmp6pK78Y/mypackage
 ---
 success: true
 exit_code: 0
 ----- stdout -----
 Analyzing API for: [TEMPDIR]/mypackage
-Public API for [TEMPDIR]/mypackage:
-
-CLASS:
-  User (1 external usages, public)
-    User model representing a system user.
-    Location: [TEMPDIR]/mypackage/models.py
-    Imported by: [TEMPDIR]/client.py
-
-FUNCTION:
-  add (1 external usages, public)
-    Add two numbers.
-    Location: [TEMPDIR]/mypackage/core.py
-    Imported by: [TEMPDIR]/client.py
-
-  add_multiple (1 external usages, public)
-    Add multiple numbers.
-    Location: [TEMPDIR]/mypackage/utils.py
-    Imported by: [TEMPDIR]/client.py
-
-  subtract (1 external usages, public)
-    Subtract b from a.
-    Location: [TEMPDIR]/mypackage/core.py
-    Imported by: [TEMPDIR]/client.py
-
-Found 4 public API symbols with external usage.
+Found 5 target files and 0 external files
+No public API symbols found with external usage.
 
 ----- stderr -----
