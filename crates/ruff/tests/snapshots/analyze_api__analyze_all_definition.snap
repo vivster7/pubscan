@@ -5,12 +5,13 @@ info:
   args:
     - analyze
     - api
-    - /tmp/.tmpwYUl4E/mypackage/config.py
+    - /tmp/.tmpYffOXe/mypackage/config.py
 ---
 success: true
 exit_code: 0
 ----- stdout -----
 Analyzing API for: [TEMPDIR]/mypackage/config.py
+Found 1 target files and 4 external files
 No public API symbols found with external usage.
 
 ----- stderr -----

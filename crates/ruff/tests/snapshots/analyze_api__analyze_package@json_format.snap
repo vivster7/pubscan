@@ -5,60 +5,16 @@ info:
   args:
     - analyze
     - api
-    - /tmp/.tmpKFt688/mypackage
+    - /tmp/.tmpC2hl4g/mypackage
     - "--output-format=json"
 ---
 success: true
 exit_code: 0
 ----- stdout -----
 Analyzing API for: [TEMPDIR]/mypackage
+Found 5 target files and 0 external files
 {
-  "public_api": [
-    {
-      "name": "User",
-      "kind": "class",
-      "location": "[TEMPDIR]/mypackage/models.py",
-      "docstring": "User model representing a system user.",
-      "usage_count": 1,
-      "importers": [
-        "[TEMPDIR]/client.py"
-      ],
-      "is_public": true
-    },
-    {
-      "name": "add",
-      "kind": "function",
-      "location": "[TEMPDIR]/mypackage/core.py",
-      "docstring": "Add two numbers.",
-      "usage_count": 1,
-      "importers": [
-        "[TEMPDIR]/client.py"
-      ],
-      "is_public": true
-    },
-    {
-      "name": "add_multiple",
-      "kind": "function",
-      "location": "[TEMPDIR]/mypackage/utils.py",
-      "docstring": "Add multiple numbers.",
-      "usage_count": 1,
-      "importers": [
-        "[TEMPDIR]/client.py"
-      ],
-      "is_public": true
-    },
-    {
-      "name": "subtract",
-      "kind": "function",
-      "location": "[TEMPDIR]/mypackage/core.py",
-      "docstring": "Subtract b from a.",
-      "usage_count": 1,
-      "importers": [
-        "[TEMPDIR]/client.py"
-      ],
-      "is_public": true
-    }
-  ],
+  "public_api": [],
   "target_path": "[TEMPDIR]/mypackage"
 }
 

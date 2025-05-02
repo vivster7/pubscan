@@ -41,55 +41,28 @@ Unlike traditional definitions relying on naming conventions (`_` prefix) or `__
 6. **Module.Symbol Detection**: Added detection for nested package access patterns like `mypackage.core.multiply()`.
 7. **Fixed Variable Collision Issues**: Resolved false positives where variables with the same name in different modules (like `logger`) were incorrectly counted as API usage.
 8. **Improved Module.Symbol Detection**: Enhanced detection of module.symbol access patterns when using aliased imports like `from a import b` followed by `b.logger`.
+9. **Fixed Module Import Tracking**: Enhanced tracking of module imports to properly detect attribute access on modules, ensuring symbols like `module.VERSION` and `module.function()` are correctly identified as API usage.
+10. **Target Module Name Resolution**: Added logic to determine the target module name from the definition files, enabling precise tracking of which modules' attributes are being accessed.
+11. **Detailed Debug Output**: Enhanced debugging to show imported modules, module aliases, and attribute access tracking.
 
 ### Remaining Work
 
 While the core functionality is working well, there are still opportunities for enhancement:
 
-1. **Deeper Semantic Analysis**: Enhance symbol extraction by leveraging Ruff's semantic model for more accurate type information and reference tracking.
+1. **Test Coverage**: Create comprehensive tests to ensure the improved module import tracking works reliably across different import patterns and project structures.
 
-   For example, there's a bug with common variable names like `logger`:
-
-   ```python
-   # In target_module.py:
-   logger = logging.getLogger(__name__)  # Defined in our target module
-
-   # In external_file.py:
-   # This file doesn't import target_module at all
-   logger = logging.getLogger(__name__)  # Independently defined logger
-   logger.info("Some message")  # This usage gets incorrectly counted as usage of target_module.logger
-   ```
-
-   The current implementation fails to verify that variables are actually imported from the target module before counting them as usage, causing false positives for common variable names.
-
-2. **Advanced Import Resolution**: Improve handling of complex import patterns, especially for nested packages and module.symbol access patterns.
-
-   For example, our current implementation struggles with this pattern:
-
-   ```python
-   # File structure:
-   # src/
-   #   pkg1/
-   #     __init__.py
-   #     pkg2/
-   #       __init__.py  # contains: def some_function(), class SampleClass, SOME_CONSTANT
-
-   # In client.py:
-   from src.pkg1 import pkg2
-
-   # These module.symbol access patterns aren't properly detected:
-   result = pkg2.some_function()
-   instance = pkg2.SampleClass()
-   value = pkg2.SOME_CONSTANT
-   ```
-
-   The algorithm tracks direct imports like `from pkg2 import some_function` correctly, but struggles with nested package imports where the imported module is then used to access its attributes.
+2. **Performance Optimization**: Review the implementation for potential performance bottlenecks, especially when analyzing large codebases.
 
 3. **Enhanced Usage Analysis**: Provide more detailed insights about how API symbols are used (e.g., read vs write access).
+
 4. **Additional Features**:
+
    - Filtering options for public API reports
    - Dependency graphs between API components
    - API documentation template generation
+   - Output options for markdown or HTML formats for easy integration into documentation
+
+5. **False Positive Reduction**: Continue refining the algorithm to eliminate remaining false positives, especially for common variable patterns.
 
 ## Leveraging Ruff's Infrastructure
 
