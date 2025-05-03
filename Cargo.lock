@@ -2623,6 +2623,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "ruff_api_analyzer"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "colored 3.0.0",
+ "env_logger",
+ "log",
+ "rayon",
+ "ruff",
+ "ruff_linter",
+ "ruff_python_ast",
+ "ruff_workspace",
+ "serde",
+ "serde_json",
+ "walkdir",
+]
+
+[[package]]
 name = "ruff_benchmark"
 version = "0.0.0"
 dependencies = [
