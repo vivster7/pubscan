@@ -722,7 +722,7 @@ impl<'a> AstVisitor for ApiAnalyzerVisitor<'a> {
 /// # Returns
 ///
 /// * `Result<ExitStatus>` - Success if analysis completes without errors
-pub(crate) fn analyze_api(
+pub fn analyze_api(
     args: &AnalyzeApiArgs,
     config_arguments: &ConfigArguments,
 ) -> Result<ExitStatus> {

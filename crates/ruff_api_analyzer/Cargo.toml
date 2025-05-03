@@ -1,0 +1,27 @@
+[package]
+name = "ruff_api_analyzer"
+version = "0.1.0"
+edition = "2021"
+authors = ["Your Name <your.email@example.com>"]
+description = "A standalone Python API analyzer extracted from Ruff"
+license = "MIT"
+repository = "https://github.com/astral-sh/ruff"
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+colored = { workspace = true }
+env_logger = { workspace = true }
+log = { workspace = true }
+ruff = { path = "../ruff" }
+ruff_linter = { workspace = true }
+ruff_workspace = { workspace = true }
+ruff_python_ast = { workspace = true }
+walkdir = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+rayon = { workspace = true }
+
+[[bin]]
+name = "api-analyzer"
+path = "src/main.rs"
