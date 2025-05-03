@@ -26,7 +26,7 @@ use ruff_workspace::Settings;
 
 pub mod args;
 mod cache;
-mod commands;
+pub mod commands;
 mod diagnostics;
 mod printer;
 pub mod resolve;
