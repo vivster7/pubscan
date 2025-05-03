@@ -47,8 +47,10 @@ jobs:
           # Configure cibuildwheel to build the Rust binary before packaging
           CIBW_BEFORE_BUILD: "pip install -e ."
           CIBW_BEFORE_BUILD_WINDOWS: "pip install -e ."
-          # On macOS, build for both Intel and Apple Silicon - fixed string format
+          # On macOS, build for both Intel and Apple Silicon
           CIBW_ARCHS_MACOS: "x86_64 arm64"
+          CIBW_ARCHS_WINDOWS: "auto"
+          CIBW_ARCHS_LINUX: "auto"
           # Environment variable to tell our setup.py not to build the binary (cibuildwheel will handle that)
           CIBW_ENVIRONMENT: "CIBUILDWHEEL=1"
 
