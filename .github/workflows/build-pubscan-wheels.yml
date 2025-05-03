@@ -39,6 +39,7 @@ jobs:
           cargo build --release --package ruff_api_analyzer
           mkdir -p crates/ruff_api_analyzer/python/pubscan/bin
           cp target/release/api-analyzer crates/ruff_api_analyzer/python/pubscan/bin/
+          ls -la crates/ruff_api_analyzer/python/pubscan/bin/
       
       - name: Build Rust binary (Windows)
         if: runner.os == 'Windows'
@@ -46,11 +47,21 @@ jobs:
           cargo build --release --package ruff_api_analyzer
           mkdir -p crates/ruff_api_analyzer/python/pubscan/bin
           copy target\release\api-analyzer.exe crates\ruff_api_analyzer\python\pubscan\bin\
+          dir crates\ruff_api_analyzer\python\pubscan\bin\
+
+      - name: Prepare wheel build
+        run: |
+          # Create a MANIFEST.in file to ensure binary files are included
+          cd crates/ruff_api_analyzer/python
+          echo "include pubscan/bin/*" > MANIFEST.in
+          cat MANIFEST.in
 
       - name: Build wheels
         run: |
           # Change to the Python package directory
           cd crates/ruff_api_analyzer/python
+          # Check if the binary exists before building
+          python -c "import os; print('Binary exists:',os.path.exists('pubscan/bin/api-analyzer') or os.path.exists('pubscan/bin/api-analyzer.exe'))"
           # Build wheels with cibuildwheel
           python -m cibuildwheel --output-dir wheelhouse
         env:
@@ -62,6 +73,18 @@ jobs:
           CIBW_BEFORE_BUILD: "pip install -e ."
           # Environment variable to tell our setup.py not to build the binary (cibuildwheel will handle that)
           CIBW_ENVIRONMENT: "CIBUILDWHEEL=1"
+          # Do not repair wheels since we're not using native extensions directly
+          CIBW_REPAIR_WHEEL_COMMAND: "true"
+
+      - name: Check wheel contents 
+        run: |
+          cd crates/ruff_api_analyzer/python
+          python -m pip install wheel zipfile-inspector
+          ls -la wheelhouse/
+          for wheel in wheelhouse/*.whl; do
+            echo "Inspecting $wheel"
+            python -m zipfile_inspector $wheel | grep -i bin || echo "No bin directory found in wheel"
+          done
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
@@ -84,6 +107,7 @@ jobs:
         run: |
           mkdir -p dist_upload
           find dist -name "*.whl" -exec cp {} dist_upload \;
+          ls -la dist_upload/
 
       - name: Upload to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1

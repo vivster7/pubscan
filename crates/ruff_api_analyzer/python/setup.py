@@ -106,6 +106,13 @@ class DevelopRustBinary(develop):
 # Get the long description from the README file
 long_description = (Path(__file__).parent / "README.md").read_text(encoding="utf-8")
 
+# Make sure bin directory exists with __init__.py so it's treated as a package
+bin_dir = Path(__file__).parent / "pubscan" / "bin"
+bin_dir.mkdir(exist_ok=True)
+init_file = bin_dir / "__init__.py"
+if not init_file.exists():
+    init_file.write_text("# Binary directory\n")
+
 setup(
     name="pubscan",
     version=get_version(),
@@ -120,6 +127,21 @@ setup(
     package_data={
         "pubscan": ["bin/*"],
     },
+    # Add explicit data_files to ensure binaries are included
+    data_files=[
+        (
+            "pubscan/bin",
+            [
+                str(
+                    Path(
+                        "pubscan/bin/api-analyzer.exe"
+                        if platform.system() == "Windows"
+                        else "pubscan/bin/api-analyzer"
+                    )
+                )
+            ],
+        )
+    ],
     cmdclass={
         "build_py": BuildRustBinary,
         "develop": DevelopRustBinary,
