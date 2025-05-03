@@ -2575,7 +2575,6 @@ dependencies = [
  "notify",
  "path-absolutize",
  "rayon",
- "red_knot_python_semantic",
  "regex",
  "ruff_cache",
  "ruff_db",

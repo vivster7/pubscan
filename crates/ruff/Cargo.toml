@@ -27,7 +27,6 @@ ruff_server = { workspace = true }
 ruff_source_file = { workspace = true }
 ruff_text_size = { workspace = true }
 ruff_workspace = { workspace = true }
-red_knot_python_semantic = { workspace = true }
 ruff_python_semantic = { workspace = true }
 
 anyhow = { workspace = true }

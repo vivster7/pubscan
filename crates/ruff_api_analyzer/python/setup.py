@@ -29,15 +29,30 @@ class BuildRustBinary(build_py):
     """Custom build command to build the Rust binary before packaging."""
 
     def run(self):
-        # Build the Rust binary
-        self._build_rust_binary()
-
         # Ensure the binary directory exists
         binary_dir = Path(__file__).parent / "pubscan" / "bin"
         binary_dir.mkdir(exist_ok=True)
 
-        # Copy the binary to the package directory
-        self._copy_binary(binary_dir)
+        # Binary name depends on platform
+        binary_name = "api-analyzer"
+        if platform.system() == "Windows":
+            binary_name += ".exe"
+
+        # Check if binary already exists or if we're in cibuildwheel
+        binary_path = binary_dir / binary_name
+        is_cibuildwheel = os.environ.get("CIBUILDWHEEL", "0") == "1"
+
+        if is_cibuildwheel:
+            # When in cibuildwheel, we don't need to build the binary here
+            # It will be built by cibuildwheel in the CIBW_BEFORE_BUILD step
+            print("Running in cibuildwheel environment, skipping binary build")
+        elif not binary_path.exists():
+            # Build the Rust binary
+            self._build_rust_binary()
+            # Copy the binary to the package directory
+            self._copy_binary(binary_dir)
+        else:
+            print(f"Binary already exists at {binary_path}, skipping build")
 
         # Run the original build_py command
         super().run()
@@ -130,6 +145,13 @@ class DevelopCommand(develop):
     """Custom develop command to build the Rust binary for development installs."""
 
     def run(self):
+        # Skip binary build if we're in cibuildwheel
+        is_cibuildwheel = os.environ.get("CIBUILDWHEEL", "0") == "1"
+        if is_cibuildwheel:
+            print("Running in cibuildwheel environment, skipping binary build")
+            super().run()
+            return
+
         # Build the binary
         build_cmd = BuildRustBinary(self.distribution)
         build_cmd._build_rust_binary()
