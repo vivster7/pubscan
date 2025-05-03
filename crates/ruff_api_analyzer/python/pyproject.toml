@@ -53,9 +53,6 @@ test-command = "pubscan --help"
 # Force platform tagging for wheels
 # This ensures cibuildwheel treats our wheels as platform-specific
 # even though they contain no native extensions directly
-[tool.cibuildwheel.config]
-# Tell our build system that we're building a platform wheel
-# This makes cibuildwheel apply platform tags to the wheel
 repair-wheel-command = "true"
 
 [tool.cibuildwheel.linux]
