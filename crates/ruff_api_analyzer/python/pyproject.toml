@@ -41,9 +41,6 @@ skip = ["pp*", "*-musllinux*"]
 # Build for CPython 3.9, 3.10, 3.11, 3.12, 3.13
 build = ["cp39-*", "cp310-*", "cp311-*", "cp312-*", "cp313-*"]
 
-# Build for both Intel and ARM on macOS
-archs = {macos = ["x86_64", "arm64"], windows = ["auto"], linux = ["auto"]}
-
 # Environment variables for all platforms
 environment = {CIBUILDWHEEL = "1"}
 
@@ -52,3 +49,12 @@ before-build = ["pip install -e ."]
 
 # Test command to run after building
 test-command = "pubscan --help"
+
+[tool.cibuildwheel.linux]
+archs = ["auto"]
+
+[tool.cibuildwheel.windows]
+archs = ["auto"]
+
+[tool.cibuildwheel.macos]
+archs = ["x86_64", "arm64"]
