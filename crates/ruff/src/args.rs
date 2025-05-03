@@ -201,6 +201,10 @@ pub struct AnalyzeApiCommand {
     #[clap(long = "python")]
     pub python: Option<PathBuf>,
 
+    /// Explicitly specify the project root directory (default: auto-detected from target).
+    #[clap(long = "project-root")]
+    pub project_root: Option<PathBuf>,
+
     /// Enable preview features.
     #[clap(long)]
     pub preview: bool,
@@ -216,6 +220,10 @@ pub struct AnalyzeApiCommand {
     /// The Python version to target.
     #[clap(long, value_name = "VERSION", value_enum)]
     pub target_version: Option<PythonVersion>,
+
+    /// Disable parallel processing for file analysis.
+    #[clap(long)]
+    pub no_parallel: bool,
 }
 
 // The `Parser` derive is for ruff_dev, for ruff `Args` would be sufficient
@@ -864,6 +872,8 @@ impl AnalyzeApiCommand {
             target_path: self.target,
             output_format: self.output_format,
             python: self.python,
+            project_root: self.project_root,
+            no_parallel: self.no_parallel,
         };
 
         let cli_overrides = ExplicitConfigOverrides {
@@ -1338,6 +1348,8 @@ pub struct AnalyzeApiArgs {
     pub target_path: PathBuf,
     pub output_format: Option<String>,
     pub python: Option<PathBuf>,
+    pub project_root: Option<PathBuf>,
+    pub no_parallel: bool,
 }
 
 /// Configuration overrides provided via dedicated CLI flags:
@@ -1494,12 +1506,14 @@ impl From<&AnalyzeCommand> for AnalyzeGraphArgs {
 impl From<&AnalyzeCommand> for AnalyzeApiArgs {
     fn from(command: &AnalyzeCommand) -> Self {
         match command {
-            AnalyzeCommand::Api(api) => Self {
-                target_path: api.target.clone(),
-                output_format: api.output_format.clone(),
-                python: api.python.clone(),
+            AnalyzeCommand::Api(command) => Self {
+                target_path: command.target.clone(),
+                output_format: command.output_format.clone(),
+                python: command.python.clone(),
+                project_root: command.project_root.clone(),
+                no_parallel: command.no_parallel,
             },
-            _ => panic!("Expected Api command"),
+            _ => unreachable!("Unexpected command"),
         }
     }
 }

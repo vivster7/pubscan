@@ -24,6 +24,8 @@ const INSTA_FILTERS: &[(&str, &str)] = &[
     (r"\\", "/"),
     // Redact temporary paths
     (r"/tmp/\.tmp[^/]+", "[TEMPDIR]"),
+    // Redact timestamps in logs
+    (r"\[\d{4}-\d{2}-\d{2}\]\[\d{2}:\d{2}:\d{2}\]", "[TIMESTAMP]"),
 ];
 
 // Create a test package structure with nested modules
