@@ -26,167 +26,108 @@ def get_version():
 
 
 class BuildRustBinary(build_py):
-    """Custom build command to build the Rust binary before packaging."""
-
-    def run(self):
-        # Ensure the binary directory exists
-        binary_dir = Path(__file__).parent / "pubscan" / "bin"
-        binary_dir.mkdir(exist_ok=True)
-
-        # Binary name depends on platform
-        binary_name = "api-analyzer"
-        if platform.system() == "Windows":
-            binary_name += ".exe"
-
-        # Check if binary already exists or if we're in cibuildwheel
-        binary_path = binary_dir / binary_name
-        is_cibuildwheel = os.environ.get("CIBUILDWHEEL", "0") == "1"
-
-        if is_cibuildwheel:
-            # When in cibuildwheel, we don't need to build the binary here
-            # It will be built by cibuildwheel in the CIBW_BEFORE_BUILD step
-            print("Running in cibuildwheel environment, skipping binary build")
-        elif not binary_path.exists():
-            # Build the Rust binary
-            self._build_rust_binary()
-            # Copy the binary to the package directory
-            self._copy_binary(binary_dir)
-        else:
-            print(f"Binary already exists at {binary_path}, skipping build")
-
-        # Run the original build_py command
-        super().run()
+    """Custom build command to build the Rust binary."""
 
     def _build_rust_binary(self):
-        """Build the Rust binary using cargo."""
-        # Try different paths to find the crate root
-        possible_crate_paths = [
-            Path(__file__).parent.parent,  # Direct parent
-            Path(__file__).parent.parent.parent.parent
-            / "crates"
-            / "ruff_api_analyzer",  # In workspace
-        ]
+        """Build the Rust binary."""
+        # If CIBUILDWHEEL is set, we're running under cibuildwheel
+        cibuildwheel = os.environ.get("CIBUILDWHEEL") == "1"
+        bin_dir = Path(__file__).parent / "pubscan" / "bin"
+        bin_dir.mkdir(exist_ok=True)
 
-        crate_path = None
-        for path in possible_crate_paths:
-            cargo_toml = path / "Cargo.toml"
-            if cargo_toml.exists():
-                with open(cargo_toml, "r") as f:
-                    if "ruff_api_analyzer" in f.read():
-                        crate_path = path
-                        break
+        # Figure out the output binary path
+        binary_name = (
+            "api-analyzer.exe" if platform.system() == "Windows" else "api-analyzer"
+        )
+        output_path = bin_dir / binary_name
 
-        if not crate_path:
-            print("Error: Could not find ruff_api_analyzer crate", file=sys.stderr)
-            print(
-                f"Searched in: {', '.join(str(p) for p in possible_crate_paths)}",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-
-        print(f"Building Rust binary from crate at: {crate_path}")
-        cmd = ["cargo", "build", "--release", "-p", "ruff_api_analyzer"]
-
-        try:
-            subprocess.check_call(
-                cmd, cwd=crate_path.parent.parent
-            )  # Run from workspace root
-            print("Successfully built Rust binary")
-        except subprocess.CalledProcessError as e:
-            print(f"Error building Rust binary: {e}", file=sys.stderr)
-            raise
-
-    def _copy_binary(self, dest_dir):
-        """Copy the binary to the package directory."""
-        # Look for the binary in multiple possible locations
-        possible_locations = [
-            Path(__file__).parent.parent / "target" / "release",
-            Path(__file__).parent.parent.parent.parent / "target" / "release",
-        ]
-
-        # Binary name depends on platform
-        binary_name = "api-analyzer"
-        if platform.system() == "Windows":
-            binary_name += ".exe"
-
-        # Find the binary
-        binary_path = None
-        for location in possible_locations:
-            path = location / binary_name
-            if path.exists():
-                binary_path = path
-                break
-
-        if not binary_path:
-            paths_str = "\n  - ".join(
-                [str(p / binary_name) for p in possible_locations]
-            )
-            print(
-                f"Error: Could not find built binary. Looked in:\n  - {paths_str}",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-
-        print(f"Found binary at: {binary_path}")
-
-        # Copy the binary
-        import shutil
-
-        dest = dest_dir / binary_name
-        shutil.copy2(binary_path, dest)
-        print(f"Copied binary to: {dest}")
-
-        # Make the binary executable on Unix
-        if platform.system() != "Windows":
-            os.chmod(dest, 0o755)
-
-
-class DevelopCommand(develop):
-    """Custom develop command to build the Rust binary for development installs."""
-
-    def run(self):
-        # Skip binary build if we're in cibuildwheel
-        is_cibuildwheel = os.environ.get("CIBUILDWHEEL", "0") == "1"
-        if is_cibuildwheel:
-            print("Running in cibuildwheel environment, skipping binary build")
-            super().run()
+        # Check if the binary already exists (pre-copied during development)
+        if output_path.exists():
+            print(f"Binary already exists at {output_path}")
             return
 
-        # Build the binary
-        build_cmd = BuildRustBinary(self.distribution)
-        build_cmd._build_rust_binary()
+        # Don't build from source if we're running under cibuildwheel since it should be using the
+        # pre-built binary from the before-build step
+        if cibuildwheel:
+            print("Skipping Rust binary build in cibuildwheel environment.")
+            return
 
-        # Create bin directory
-        binary_dir = Path(__file__).parent / "pubscan" / "bin"
-        binary_dir.mkdir(exist_ok=True)
+        # Determine the path to the Rust crate
+        crate_path = Path(__file__).parent.parent.parent
 
-        # Copy the binary for development mode
-        build_cmd._copy_binary(binary_dir)
+        # Run cargo build to create the binary
+        print(f"Building Rust binary from {crate_path}...")
+        cargo_cmd = ["cargo", "build", "--release", "--package", "ruff_api_analyzer"]
 
-        # Run the original develop command
+        try:
+            subprocess.run(cargo_cmd, cwd=crate_path, check=True)
+        except subprocess.CalledProcessError as e:
+            print(f"Failed to build Rust binary: {e}")
+            raise
+
+        # Determine the path to the built binary
+        target_dir = crate_path / "target" / "release"
+        binary_path = target_dir / binary_name
+
+        # Copy the binary to the package directory
+        print(f"Copying binary from {binary_path} to {output_path}")
+        # Handle non-existent binary with the correct name in Windows
+        if not binary_path.exists() and platform.system() == "Windows":
+            binary_path = target_dir / "api-analyzer.exe"
+
+        if not binary_path.exists():
+            binary_path = target_dir / "api-analyzer"
+
+        if not binary_path.exists():
+            raise FileNotFoundError(f"Rust binary not found at {binary_path}")
+
+        # Use shell command to copy to preserve executable permissions
+        if platform.system() == "Windows":
+            subprocess.run(
+                ["copy", str(binary_path), str(output_path)], shell=True, check=True
+            )
+        else:
+            subprocess.run(["cp", str(binary_path), str(output_path)], check=True)
+
+    def run(self):
+        self._build_rust_binary()
         super().run()
 
+
+class DevelopRustBinary(develop):
+    """Custom develop command to build the Rust binary in development mode."""
+
+    def run(self):
+        cmd = BuildRustBinary(self.distribution)
+        cmd._build_rust_binary()
+        super().run()
+
+
+# Get the long description from the README file
+long_description = (Path(__file__).parent / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="pubscan",
     version=get_version(),
     description="A tool for analyzing Python module's public API surface area",
-    long_description=open(Path(__file__).parent / "README.md").read(),
+    long_description=long_description,
     long_description_content_type="text/markdown",
     author="Ruff Developers",
     author_email="info@ruff.rs",
     url="https://github.com/astral-sh/ruff",
     packages=find_packages(),
     include_package_data=True,
-    package_data={"pubscan": ["bin/*"]},
+    package_data={
+        "pubscan": ["bin/*"],
+    },
+    cmdclass={
+        "build_py": BuildRustBinary,
+        "develop": DevelopRustBinary,
+    },
     entry_points={
         "console_scripts": [
             "pubscan=pubscan.cli:main",
         ],
-    },
-    cmdclass={
-        "build_py": BuildRustBinary,
-        "develop": DevelopCommand,
     },
     classifiers=[
         "Development Status :: 4 - Beta",
