@@ -14,8 +14,8 @@ use log::warn;
 use notify::{recommended_watcher, RecursiveMode, Watcher};
 
 use args::{
-    AnalyzeApiCommand, AnalyzeCommand, AnalyzeGraphCommand, Args,
-    CheckCommand, Command, FormatCommand, GlobalConfigArgs, ServerCommand,
+    AnalyzeApiCommand, AnalyzeCommand, AnalyzeGraphCommand, Args, CheckCommand, Command,
+    FormatCommand, GlobalConfigArgs, ServerCommand,
 };
 use printer::{Flags as PrinterFlags, Printer};
 use ruff_linter::logging::{set_up_logging, LogLevel};
@@ -227,7 +227,7 @@ fn analyze_graph(
 fn analyze_api(args: AnalyzeApiCommand, global_options: GlobalConfigArgs) -> Result<ExitStatus> {
     let (cli, config_arguments) = args.partition(global_options)?;
 
-    commands::analyze_api::analyze_api(cli, &config_arguments)
+    commands::analyze_api::analyze_api(&cli, &config_arguments)
 }
 
 fn server(args: ServerCommand) -> Result<ExitStatus> {

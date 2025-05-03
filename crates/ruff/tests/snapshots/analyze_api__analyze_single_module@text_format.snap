@@ -5,13 +5,11 @@ info:
   args:
     - analyze
     - api
-    - /tmp/.tmpdsVtmr/mypackage/core.py
+    - /tmp/.tmpTrYvmM/mypackage/core.py
 ---
 success: true
 exit_code: 0
 ----- stdout -----
-Analyzing API for: [TEMPDIR]/mypackage/core.py
-Found 1 target files and 4 external files
 Public API for [TEMPDIR]/mypackage/core.py:
 
 FUNCTION:
@@ -30,3 +28,7 @@ FUNCTION:
 Found 2 public API symbols with external usage.
 
 ----- stderr -----
+[TIMESTAMP][ruff::commands::analyze_api][INFO] Analyzing API for: [TEMPDIR]/mypackage/core.py
+[TIMESTAMP][ruff::commands::analyze_api][INFO] Using parallel processing for file analysis
+[TIMESTAMP][ruff::commands::analyze_api][INFO] Using parallel processing for file analysis
+[TIMESTAMP][ruff::commands::analyze_api][INFO] Auto-detected project root: [TEMPDIR]/mypackage

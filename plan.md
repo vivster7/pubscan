@@ -1,158 +1,145 @@
-# Plan: Usage-Based Public API Analysis for Python Modules/Packages
+# Usage-Based Public API Analysis for Python Modules/Packages
 
-## Goal
+## Overview
 
-To implement a Ruff command that analyzes a given Python module (`.py` file) or package (directory) to determine its effective public API based on _actual usage_ from external code within the project. The command should report the public symbols, their definition details, and how many times each is used externally.
+This tool analyzes a Python module or package to determine its effective public API based on _actual usage_ in external code within the project. Unlike traditional definitions relying on naming conventions (`_` prefix) or `__all__` declarations, this analysis defines a symbol as "public" if:
 
-## Command Example
+1. It is defined within the target module file or package directory
+2. It is imported and used by at least one other Python file that is external to the target boundary
 
-The intended command-line interface would be:
+## Usage
 
 ```bash
 ruff analyze api <path/to/module.py_or_package_dir> [--output-format json] ...
 ```
 
-## Core Idea: Usage-Based Public API
+## Implementation Status
 
-Unlike traditional definitions relying on naming conventions (`_` prefix) or `__all__`, this analysis defines a symbol as "public" if and only if:
+### ✅ Core Features (Completed)
 
-1.  It is defined within the target module file or package directory.
-2.  It is imported and used by _at least one other Python file_ that is **external** to the target module/package boundary.
+- **Command-line Interface**: `ruff analyze api` with appropriate argument parsing
+- **Target Boundary Detection**: Module files vs. package directories
+- **Symbol Extraction**: Parse Python files and extract symbols from AST
+- **External Usage Analysis**: Detect which symbols are used externally with accurate counting
+- **Results Output**: Both text and JSON formats with symbol details by type
+- **Test Coverage**: Multiple scenarios (modules, packages, classes, `__all__` definitions)
 
-## Progress Checkpoint (Implementation Status)
+### ✅ Recent Improvements (Completed)
 
-### Completed Features
+- **AST-based Analysis**: Clean semantic analysis using Ruff's Python parser
+- **Code Organization**: Improved structure with clear sections and type aliases
+- **Logging**: Replaced debug printouts with proper logging at appropriate levels
+- **Module.Symbol Detection**: Enhanced detection of package access patterns
+- **Resolved False Positives**: Fixed variable collision issues and proper module tracking
+- **Explicit Project Root**: Added option to specify project root via `--project-root` parameter
+- **Expanded Target Support**: Improved handling of target modules outside the project root
+- **Parallel Processing**: Added parallel file analysis with Rayon and `--no-parallel` option for small projects
+- **Bug Fix: Fully Qualified Name Matching**: Fixed a bug where imports with different module paths (e.g., `from a.b import mysymbol`) were incorrectly matching symbols with unrelated fully qualified names (e.g., `x.y.mysymbol`). Now fully qualified names are properly validated during import processing.
 
-1. **Command-line Interface**: Implemented the `ruff analyze api` command with appropriate argument parsing.
-2. **Target Boundary Detection**: Implemented logic to identify and process module files vs. package directories.
-3. **Symbol Extraction with AST Analysis**: Parse Python files using Ruff's Python parser and extract symbols from the AST.
-4. **External Usage Analysis**: Implemented import detection to identify which symbols are used externally with accurate counting.
-5. **Results Output**: Provided both text and JSON output formats with relevant symbol details, organized by symbol types.
-6. **Comprehensive Tests**: Created tests covering various scenarios (single modules, packages, classes, `__all__` definitions).
-7. **Code Quality**: Removed unused code, fixed linting warnings, and ensured a clean codebase.
+### 🔄 Code Quality Enhancements (Completed)
 
-### Recent Improvements
+- **Unified AST Traversal**: Consolidated redundant traversal logic
+- **Type Aliases**: Added for complex types to improve readability
+- **Documentation**: Improved function and section documentation
+- **Modular Design**: Functionally organized related logic together
+- **Clear Section Boundaries**: Added section comments for better navigation
 
-1. **AST-based Analysis**: Transitioned from text-based parsing to AST analysis using the `ruff_python_parser`.
-2. **Reliable External Usage**: Fixed calculation of external usage, avoiding incorrect counting.
-3. **Code Cleanup**: Removed unused code and improved the structure.
-4. **Output Formatting**: Enhanced the formatting of the output for better readability.
-5. **Fixed Symbol Tracking**: Corrected the AST access patterns, improved string handling, and refined symbol usage tracking.
-6. **Module.Symbol Detection**: Added detection for nested package access patterns like `mypackage.core.multiply()`.
-7. **Fixed Variable Collision Issues**: Resolved false positives where variables with the same name in different modules (like `logger`) were incorrectly counted as API usage.
-8. **Improved Module.Symbol Detection**: Enhanced detection of module.symbol access patterns when using aliased imports like `from a import b` followed by `b.logger`.
-9. **Fixed Module Import Tracking**: Enhanced tracking of module imports to properly detect attribute access on modules, ensuring symbols like `module.VERSION` and `module.function()` are correctly identified as API usage.
-10. **Target Module Name Resolution**: Added logic to determine the target module name from the definition files, enabling precise tracking of which modules' attributes are being accessed.
-11. **Detailed Debug Output**: Enhanced debugging to show imported modules, module aliases, and attribute access tracking.
+### 🚧 Future Work (In Progress)
 
-### Remaining Work
+1. **Enhanced Test Coverage**
 
-While the core functionality is working well, there are still opportunities for enhancement:
+   - Additional edge cases for import patterns
+   - Complex package structures with nested imports
 
-1. **Test Coverage**: Create comprehensive tests to ensure the improved module import tracking works reliably across different import patterns and project structures.
+2. **Performance Optimization**
 
-2. **Performance Optimization**: Review the implementation for potential performance bottlenecks, especially when analyzing large codebases.
+   - ✅ **Parallel Processing**: Implemented parallelization of external file analysis using Rayon
+     - Two-phase approach: serial symbol collection + parallel usage analysis
+     - Process external files concurrently with thread-safe result aggregation
+     - Thread-safe data structures with Arc and Mutex for shared state
+     - Added `--no-parallel` flag to disable parallelism when needed
+     - Benchmark testing shows sequential processing can be faster for small projects
+     - Similar to approach used in `analyze_graph` command
+   - **Incremental Analysis**: Cache analysis results for files that haven't changed
+   - **Targeted Analysis**: Analyze only files that import from the target module
+   - **Optimized AST Traversal**: Reduce unnecessary recursive traversals
 
-3. **Enhanced Usage Analysis**: Provide more detailed insights about how API symbols are used (e.g., read vs write access).
+3. **Architectural Improvements**
 
-4. **Additional Features**:
+   - ✅ **Encapsulate Analysis State**: Created `ApiAnalyzer` and `FileAnalysisState` structs to hold shared and per-file state, reducing function parameter bloat
+   - ✅ **Utilize the Visitor Pattern**: Implemented `AstVisitor` trait with `ApiAnalyzerVisitor` to replace manual AST traversal, improving maintainability and completeness
+   - ✅ **Separate Analysis Phases**: Broke down the analysis into discrete phases (setup, categorization, extraction, analysis, formatting)
+   - ✅ **Simplify Parallelism Logic**: Extracted file processing into a separate function to eliminate duplication between sequential and parallel paths
+   - ✅ **Re-evaluate Import Handling**: Separated import tracking from usage counting for cleaner code organization
+   - ⚠️ **Improve Fully Qualified Name Handling**: Create more robust FQN matching logic, potentially leveraging Ruff's resolver
+   - ✅ **Enhance Data Structures**: Replaced complex nested generics with more specific and descriptive types
+   - ✅ **Review Error Handling**: Improved error collection and reporting strategy for better user experience
+   - **Command Pattern**: Break down the main `analyze_api` function into specialized command objects
+   - **Output Formatting Strategy Pattern**: Create a strategy pattern with different formatters
+   - **File Repository Abstraction**: Centralize file operations behind a repository interface
+   - **Configuration Builder Pattern**: Improve configuration handling with a builder pattern
+   - **Implementation Priority**: Command Pattern → Output Formatting Strategy → File Repository → Configuration Builder → FQN Handling
 
-   - Filtering options for public API reports
-   - Dependency graphs between API components
-   - API documentation template generation
-   - Output options for markdown or HTML formats for easy integration into documentation
+4. **Feature Enhancements**
 
-5. **False Positive Reduction**: Continue refining the algorithm to eliminate remaining false positives, especially for common variable patterns.
+   - More detailed usage information (read vs. write access)
+   - API dependency graphs between components
+   - Documentation template generation
+   - Additional output formats (markdown, HTML)
 
-## Leveraging Ruff's Infrastructure
+5. **User Experience**
 
-This feature heavily relies on Ruff's existing capabilities:
+   - More filtering and sorting options
+   - Interactive mode for exploring APIs
+   - Integration with documentation tools
 
-- **Parsing:** `ruff_python_parser` for generating Abstract Syntax Trees (ASTs).
-- **Semantic Analysis:** `ruff_python_semantic` for resolving bindings, references, and scopes.
-- **Configuration & File Discovery:** `ruff_workspace` and `ruff_linter::resolver` to find relevant Python files, respect user configurations (exclusions, source roots), etc.
+6. **Command-Line Interface Improvements**
+   - Include/exclude patterns for targeting specific files or directories
+   - Verbosity controls specific to API analysis
+   - Support for custom output file paths
 
-## Conceptual Data Structures (Rust)
+## Architecture
+
+The implementation leverages Ruff's existing infrastructure:
+
+- **Parsing**: `ruff_python_parser` for generating ASTs
+- **File Discovery**: `ruff_workspace` and `resolver` to find Python files
+- **Configuration**: Reuse of Ruff's configuration system
+- **Parallelism**: Rayon library for parallel processing (planned)
+
+The analysis follows these high-level steps:
+
+1. **Target Identification**: Determine the target boundary (file or package)
+2. **Symbol Extraction**: Find all symbols defined in the target
+3. **External Usage Analysis**: Analyze imports and usage in external files (parallelizable)
+4. **Public API Construction**: Build final API based on actual usage
+
+## Data Structures
 
 ```rust
-// Represents a symbol defined within the target module/package
+// Symbol kinds we can detect
+enum SymbolKind {
+    Function,
+    Class,
+    Variable,
+    Module,
+    Other,
+}
+
+// Information about a symbol defined in the target
 struct DefinedSymbol {
-    name: String,
-    kind: SymbolKind, // e.g., Function, Class, Variable
-    definition_location: Location, // Start/end line/col in the target file
+    kind: SymbolKind,
+    location: PathBuf,
     docstring: Option<String>,
+    is_public: bool,
+    fully_qualified_name: String,
 }
 
-// The final result structure
-struct UsageBasedApiResult {
-    // Symbols DEFINED in the target AND USED externally at least once.
-    public_api: HashMap<String, DefinedSymbol>,
-    // Usage counts ONLY for symbols deemed public by usage.
-    external_usage_counts: HashMap<String, usize>,
-    // Optional: Could add symbols defined but never used externally.
-    // unused_symbols: HashMap<String, DefinedSymbol>,
+// Information about a symbol's usage
+struct ApiSymbol {
+    name: String,
+    definition: DefinedSymbol,
+    usage_count: usize,
+    importers: HashSet<PathBuf>,
 }
-
-// Conceptual analysis function signature
-fn analyze_api_by_usage(
-    target_path: SystemPathBuf, // Path to the .py file or package directory
-    workspace: &Workspace, // Ruff's workspace structure
-    resolver: &Resolver, // Ruff's settings resolver
-    all_project_files: &[ResolvedFile], // All Python files in the project context
-) -> Result<UsageBasedApiResult>;
 ```
-
-## Detailed Steps
-
-1.  **Target Identification:**
-
-    - Determine if the input `target_path` points to a `.py` file (module) or a directory (package).
-    - Establish the "Target Boundary":
-      - For a module file: The boundary is the single file path.
-      - For a package directory: The boundary includes the `__init__.py` file AND all files/subdirectories within the package directory path.
-
-2.  **Candidate Symbol Extraction (Target):**
-
-    - Parse the target module file or the package's `__init__.py` file (and potentially other files within the package boundary, depending on desired depth).
-    - Create a `SemanticModel` for each relevant file and analyze their top-level scopes.
-    - Extract candidate symbols (`name`, `kind`, `location`, `docstring`) by iterating through the bindings in the global scope of each analyzed file.
-    - Focus on bindings with kinds like `BindingKind::Name`, `BindingKind::Function`, `BindingKind::Class`, etc.
-    - Store these as potential candidates (`candidate_symbols: HashMap<String, DefinedSymbol>`).
-    - Initialize a temporary usage count map (`temp_usage_counts: HashMap<String, usize>`) for these candidates, starting counts at 0.
-
-3.  **External Usage Analysis (Iterating over Project Files):**
-
-    - Iterate through `all_project_files` provided for the project context.
-    - **Filter for External Files:** For each file, check if its path is _outside_ the Target Boundary established in Step 1. Skip files that are _inside_ the boundary.
-    - **Analyze Each External File:**
-      - Create a `SemanticModel` for the external file.
-      - Identify import statements related to the target module/package.
-      - Use `resolve_qualified_name` to determine which imports resolve to symbols from the target boundary.
-      - For each usage (reference) in the file, check if it corresponds to a symbol imported from the target boundary.
-      - If a usage is found that corresponds to a candidate symbol from the target module/package, increment the counter for that symbol in the `temp_usage_counts` map.
-
-4.  **Final API Construction:**
-
-    - Create the final result maps: `public_api: HashMap<String, DefinedSymbol>` and `external_usage_counts: HashMap<String, usize>`.
-    - Iterate through the `candidate_symbols` collected in Step 2.
-    - For each candidate symbol (`name`, `defined_symbol`):
-      - Check its count in `temp_usage_counts` from Step 3.
-      - If the count is greater than 0:
-        - Add the symbol's details to `public_api`.
-        - Add its usage count to `external_usage_counts`.
-      - _(Optional: Handle symbols with 0 count, e.g., adding them to an `unused_symbols` list/map)._
-    - Assemble the `public_api` and `external_usage_counts` maps into the `UsageBasedApiResult` structure.
-
-5.  **Integration into Ruff:**
-    - Implement this logic within a suitable Rust module in the Ruff project (e.g., `ruff_analyze` or a new dedicated crate).
-    - Create a new command (`ruff analyze api`) that:
-      - Parses command-line arguments.
-      - Sets up the workspace, semantic analysis infrastructure (`ruff_python_semantic`), and discovers project files.
-      - Calls the core analysis function (`analyze_api_by_usage` or similar).
-      - Formats the `UsageBasedApiResult` (e.g., as JSON) and prints it to output.
-
-## Key Differences from Convention-Based Analysis
-
-- The definition of "public" is entirely driven by observed external usage, not developer intent signaled via `__all__` or `_` prefixes.
-- Requires analyzing the _entire project context_ to find usages, not just the target file.
-- Symbols are first collected as candidates, then filtered based on usage counts.

@@ -5,13 +5,15 @@ info:
   args:
     - analyze
     - api
-    - /tmp/.tmp0h5wKc/mypackage/models.py
+    - /tmp/.tmpX9gSuJ/mypackage/models.py
 ---
 success: true
 exit_code: 0
 ----- stdout -----
-Analyzing API for: [TEMPDIR]/mypackage/models.py
-Found 1 target files and 4 external files
 No public API symbols found with external usage.
 
 ----- stderr -----
+[TIMESTAMP][ruff::commands::analyze_api][INFO] Analyzing API for: [TEMPDIR]/mypackage/models.py
+[TIMESTAMP][ruff::commands::analyze_api][INFO] Using parallel processing for file analysis
+[TIMESTAMP][ruff::commands::analyze_api][INFO] Using parallel processing for file analysis
+[TIMESTAMP][ruff::commands::analyze_api][INFO] Auto-detected project root: [TEMPDIR]/mypackage

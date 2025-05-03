@@ -5,17 +5,19 @@ info:
   args:
     - analyze
     - api
-    - /tmp/.tmpC2hl4g/mypackage
+    - /tmp/.tmpCYdYNE/mypackage
     - "--output-format=json"
 ---
 success: true
 exit_code: 0
 ----- stdout -----
-Analyzing API for: [TEMPDIR]/mypackage
-Found 5 target files and 0 external files
 {
   "public_api": [],
   "target_path": "[TEMPDIR]/mypackage"
 }
 
 ----- stderr -----
+[TIMESTAMP][ruff::commands::analyze_api][INFO] Analyzing API for: [TEMPDIR]/mypackage
+[TIMESTAMP][ruff::commands::analyze_api][INFO] Using parallel processing for file analysis
+[TIMESTAMP][ruff::commands::analyze_api][INFO] Using parallel processing for file analysis
+[TIMESTAMP][ruff::commands::analyze_api][INFO] Auto-detected project root: [TEMPDIR]/mypackage

@@ -5,13 +5,15 @@ info:
   args:
     - analyze
     - api
-    - /tmp/.tmp6pK78Y/mypackage
+    - /tmp/.tmpg8S6bG/mypackage
 ---
 success: true
 exit_code: 0
 ----- stdout -----
-Analyzing API for: [TEMPDIR]/mypackage
-Found 5 target files and 0 external files
 No public API symbols found with external usage.
 
 ----- stderr -----
+[TIMESTAMP][ruff::commands::analyze_api][INFO] Analyzing API for: [TEMPDIR]/mypackage
+[TIMESTAMP][ruff::commands::analyze_api][INFO] Using parallel processing for file analysis
+[TIMESTAMP][ruff::commands::analyze_api][INFO] Using parallel processing for file analysis
+[TIMESTAMP][ruff::commands::analyze_api][INFO] Auto-detected project root: [TEMPDIR]/mypackage
