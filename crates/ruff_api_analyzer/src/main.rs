@@ -1,3 +1,4 @@
+use std::env;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -62,12 +63,54 @@ fn main() -> ExitCode {
         .format_timestamp(None)
         .init();
 
+    // Convert relative paths to absolute paths
+    let target_abs = if args.target.is_relative() {
+        match env::current_dir() {
+            Ok(current_dir) => current_dir.join(&args.target),
+            Err(e) => {
+                eprintln!("Error getting current directory: {}", e);
+                return ExitCode::from(1);
+            }
+        }
+    } else {
+        args.target.clone()
+    };
+
+    // Convert project_root to absolute path if it's provided and relative
+    let project_root_abs = args.project_root.map(|path| {
+        if path.is_relative() {
+            match env::current_dir() {
+                Ok(current_dir) => current_dir.join(path),
+                Err(_) => path, // Fall back to the relative path
+            }
+        } else {
+            path
+        }
+    });
+
+    // Convert python executable path to absolute if it's provided and relative
+    let python_abs = args.python.map(|path| {
+        if path.is_relative() {
+            match env::current_dir() {
+                Ok(current_dir) => current_dir.join(path),
+                Err(_) => path, // Fall back to the relative path
+            }
+        } else {
+            path
+        }
+    });
+
+    debug!("Using target path: {}", target_abs.display());
+    if let Some(ref root) = project_root_abs {
+        debug!("Using project root: {}", root.display());
+    }
+
     // Parse analyzer command using partition
     let analyze_cmd = ruff::args::AnalyzeApiCommand {
-        target: args.target.clone(),
+        target: target_abs,
         output_format: Some(args.output_format),
-        python: args.python,
-        project_root: args.project_root,
+        python: python_abs,
+        project_root: project_root_abs,
         preview: false,
         no_preview: false,
         detect_string_imports: false,
