@@ -35,8 +35,8 @@ jobs:
         run: |
           python -m cibuildwheel crates/ruff_api_analyzer --output-dir crates/ruff_api_analyzer/python/wheelhouse
         env:
-          # Build for Python 3.10 - 3.13
-          CIBW_BUILD: "cp310-* cp311-* cp312-* cp313-*"
+          # Build only once per platform, wheel is py3-none
+          CIBW_BUILD: "cp310-*"
           # Install Rust inside the cibuildwheel environment using rustup
           CIBW_BEFORE_BUILD: "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain stable -y"
           # Add macOS specific step to ensure the target stdlib is installed
