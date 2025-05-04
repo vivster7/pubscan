@@ -45,8 +45,6 @@ jobs:
             rustup target add aarch64-apple-darwin # Target arm64
           # Add Cargo bin to PATH using CIBW_ENVIRONMENT for earlier access
           CIBW_ENVIRONMENT: 'PATH="$HOME/.cargo/bin:$PATH"'
-          # No repair command needed, maturin handles tags
-          CIBW_REPAIR_WHEEL_COMMAND: ""
           # Explicitly build only x86_64 on Linux
           CIBW_ARCHS_LINUX: "x86_64"
 
