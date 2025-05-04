@@ -39,9 +39,9 @@ Repository = "https://github.com/astral-sh/ruff"
 
 [tool.maturin]
 # Specify the directory containing the Python package source
-python-source = "." # Assumes python package is directly in this dir ('pubscan' subdir)
-# Explicitly point to the Cargo.toml file one level up
-manifest-path = "../Cargo.toml"
+python-source = "."
+# Explicitly point to the Cargo.toml file relative to the project root
+manifest-path = "crates/ruff_api_analyzer/Cargo.toml"
 
 # --- cibuildwheel configuration ---
 # Keep build/skip/arch settings, remove others handled by maturin/workflow
