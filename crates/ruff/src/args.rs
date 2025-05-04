@@ -228,6 +228,12 @@ pub struct AnalyzeApiCommand {
     /// Output only a sorted summary line for each symbol.
     #[clap(long)]
     pub short: bool,
+
+    /// Don't exclude test files and directories from analysis.
+    /// By default, files in 'test' or 'tests' directories and files with names
+    /// starting with 'test_' or ending with '_test.py' are excluded.
+    #[clap(long = "no-ignore-test-files")]
+    pub no_ignore_test_files: bool,
 }
 
 // The `Parser` derive is for ruff_dev, for ruff `Args` would be sufficient
@@ -879,6 +885,7 @@ impl AnalyzeApiCommand {
             project_root: self.project_root,
             no_parallel: self.no_parallel,
             short: self.short,
+            ignore_test_files: !self.no_ignore_test_files,
         };
 
         let cli_overrides = ExplicitConfigOverrides {
@@ -1356,6 +1363,7 @@ pub struct AnalyzeApiArgs {
     pub project_root: Option<PathBuf>,
     pub no_parallel: bool,
     pub short: bool,
+    pub ignore_test_files: bool,
 }
 
 /// Configuration overrides provided via dedicated CLI flags:
@@ -1519,6 +1527,7 @@ impl From<&AnalyzeCommand> for AnalyzeApiArgs {
                 project_root: command.project_root.clone(),
                 no_parallel: command.no_parallel,
                 short: command.short,
+                ignore_test_files: !command.no_ignore_test_files,
             },
             _ => unreachable!("Unexpected command"),
         }

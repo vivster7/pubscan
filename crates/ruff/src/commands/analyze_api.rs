@@ -826,6 +826,11 @@ pub fn analyze_api(
                 trace!("Added to target files: {}", path.display());
                 target_files.push((path.clone(), resolved_file));
             } else {
+                // Skip test files if enabled
+                if args.ignore_test_files && is_test_file(&path) {
+                    trace!("Skipping test file: {}", path.display());
+                    continue;
+                }
                 trace!("Added to external files: {}", path.display());
                 external_files.push((path.clone(), resolved_file));
             }
@@ -1506,6 +1511,28 @@ fn determine_target_module_name(candidate_symbols: &HashMap<String, DefinedSymbo
     } else {
         "unknown".to_string()
     }
+}
+
+/// Check if a file is a test file based on naming conventions
+fn is_test_file(path: &Path) -> bool {
+    // Check if the file is in a directory called "test" or "tests"
+    let is_in_test_dir = path.components().any(|component| {
+        if let std::path::Component::Normal(name) = component {
+            let name_str = name.to_string_lossy();
+            name_str == "test" || name_str == "tests"
+        } else {
+            false
+        }
+    });
+
+    // Check if the file name starts with "test_" or ends with "_test.py"
+    let file_name = path
+        .file_name()
+        .map_or(String::new(), |f| f.to_string_lossy().to_string());
+    let starts_with_test = file_name.starts_with("test_");
+    let ends_with_test_py = file_name.ends_with("_test.py");
+
+    is_in_test_dir || starts_with_test || ends_with_test_py
 }
 
 #[cfg(test)]

@@ -41,6 +41,11 @@ struct Args {
     /// Output only a sorted summary line for each symbol.
     #[clap(long)]
     short: bool,
+
+    /// Don't exclude test files from analysis. By default, files in 'test' or 'tests' directories
+    /// and files with names starting with 'test_' or ending with '_test.py' are excluded.
+    #[clap(long = "no-ignore-test-files")]
+    no_ignore_test_files: bool,
 }
 
 fn main() -> ExitCode {
@@ -117,6 +122,7 @@ fn main() -> ExitCode {
         target_version: None,
         no_parallel: args.no_parallel,
         short: args.short,
+        no_ignore_test_files: args.no_ignore_test_files,
     };
 
     // Use Default implementation and rely on ExplicitConfigOverrides for more settings
