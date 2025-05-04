@@ -74,8 +74,8 @@ jobs:
           cd crates/ruff_api_analyzer/python
           # Check if the binary exists before building
           python -c "import os, sys; bin_exists = os.path.exists('pubscan/bin/api-analyzer') or os.path.exists('pubscan/bin/api-analyzer.exe'); print(f'Binary exists: {bin_exists}'); sys.exit(0 if bin_exists else 1)"
-          # Add platform tag to setup.py
-          python -c "import sys; f = open('setup.py', 'r'); content = f.read(); f.close(); f = open('setup.py', 'w'); f.write(content.replace('cmdclass={', 'options={\"bdist_wheel\": {\"py_limited_api\": False, \"plat_name\": True}},\\n    cmdclass={').replace('setup(', 'from wheel.bdist_wheel import bdist_wheel\\nclass BinaryDistWheel(bdist_wheel):\\n    def finalize_options(self):\\n        self.root_is_pure = False\\n        bdist_wheel.finalize_options(self)\\n\\nsetup(')); f.close(); print('Updated setup.py')"
+          # Make sure plat_name is set to True in the options
+          python -c "import sys; f = open('setup.py', 'r'); content = f.read(); f.close(); if 'plat_name' not in content: f = open('setup.py', 'w'); f.write(content.replace('options={\"bdist_wheel\": {\"py_limited_api\": False, \"universal\": False}', 'options={\"bdist_wheel\": {\"py_limited_api\": False, \"universal\": False, \"plat_name\": True}')); f.close(); print('Updated setup.py')"
           # Build wheels with cibuildwheel
           python -m cibuildwheel --output-dir wheelhouse --debug
 

@@ -143,15 +143,6 @@ init_file = bin_dir / "__init__.py"
 if not init_file.exists():
     init_file.write_text("# Binary directory\n")
 
-from wheel.bdist_wheel import bdist_wheel
-
-
-class BinaryDistWheel(bdist_wheel):
-    def finalize_options(self):
-        self.root_is_pure = False
-        bdist_wheel.finalize_options(self)
-
-
 setup(
     name="pubscan",
     version=get_version(),
@@ -182,7 +173,9 @@ setup(
         )
     ],
     # Force platform-specific wheel
-    options={"bdist_wheel": {"py_limited_api": False, "universal": False}},
+    options={
+        "bdist_wheel": {"py_limited_api": False, "universal": False, "plat_name": True}
+    },
     cmdclass={
         "build_py": BuildRustBinary,
         "develop": DevelopRustBinary,
