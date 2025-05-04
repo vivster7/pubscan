@@ -1,6 +1,6 @@
 [package]
 name = "ruff_api_analyzer"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2021"
 authors = ["Your Name <your.email@example.com>"]
 description = "A standalone Python API analyzer extracted from Ruff"
@@ -23,5 +23,5 @@ serde_json = { workspace = true }
 rayon = { workspace = true }
 
 [[bin]]
-name = "api-analyzer"
+name = "pubscan"
 path = "src/main.rs"

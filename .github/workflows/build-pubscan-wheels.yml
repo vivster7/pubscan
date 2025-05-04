@@ -56,8 +56,8 @@ jobs:
           cd test_install
           # Install one of the built wheels (wheels are now in crates/ruff_api_analyzer/python/wheelhouse)
           python -m pip install --find-links=../crates/ruff_api_analyzer/python/wheelhouse pubscan
-          # Test the installed binary
-          api-analyzer --help
+          # Test the installed binary (now named pubscan)
+          pubscan --help
         # working-directory: crates/ruff_api_analyzer # Run from repo root
 
       - name: Check wheel contents
