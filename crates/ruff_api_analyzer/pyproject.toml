@@ -1,0 +1,48 @@
+[build-system]
+requires = ["maturin>=1.6,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "pubscan"
+# Version will be read from Cargo.toml by maturin
+# version = "..." 
+dynamic = ["version"] # Tell maturin to get version from Cargo.toml
+description = "A tool for analyzing Python module's public API surface area"
+readme = "python/README.md" # Assuming README is in the python subdirectory
+license = {text = "MIT"}
+authors = [
+    {name = "Ruff Developers", email = "info@ruff.rs"},
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: Quality Assurance",
+    "Programming Language :: Rust",
+]
+requires-python = ">=3.8" # Updated based on classifiers
+
+[project.urls]
+Homepage = "https://github.com/astral-sh/ruff"
+
+# Remove the project.scripts section as maturin doesn't support
+# packaging a binary crate alongside a script entry point easily.
+# [project.scripts]
+# pubscan = "pubscan.cli:main"
+
+[tool.maturin]
+# We have a binary crate, not a library
+# bindings = "..." 
+python-source = "python" # Directory containing the python package ('pubscan')
+# Tells maturin to build the binary from the [bin] section of Cargo.toml
+# and package it.
+module-name = "pubscan._native" # Optional: specify module for extension, might help discovery
+# For binary crates, maturin typically includes the binary automatically.
+# If issues arise finding the binary, we might need explicit include patterns. 

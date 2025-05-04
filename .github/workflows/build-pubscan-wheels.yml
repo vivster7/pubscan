@@ -11,6 +11,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        # Add other platforms/architectures if needed (e.g., macos-arm64)
         os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
@@ -21,70 +22,50 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'  # Use Python 3.11+ for cibuildwheel 3
+          python-version: '3.11'
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
 
-      - name: Install dependencies
+      - name: Install cibuildwheel
         run: |
           python -m pip install --upgrade pip
           python -m pip install cibuildwheel
 
-      - name: Build Rust binary (Unix)
-        if: runner.os != 'Windows'
-        run: |
-          cargo build --release --package ruff_api_analyzer
-          mkdir -p crates/ruff_api_analyzer/python/pubscan/bin
-          cp target/release/api-analyzer crates/ruff_api_analyzer/python/pubscan/bin/
-          ls -la crates/ruff_api_analyzer/python/pubscan/bin/
-      
-      - name: Build Rust binary (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          cargo build --release --package ruff_api_analyzer
-          mkdir -p crates/ruff_api_analyzer/python/pubscan/bin
-          copy target\release\api-analyzer.exe crates\ruff_api_analyzer\python\pubscan\bin\
-          dir crates\ruff_api_analyzer\python\pubscan\bin\
-
-      - name: Prepare package files
-        working-directory: crates/ruff_api_analyzer/python
-        run: |
-          # Create an __init__.py file in the bin directory
-          echo "# This directory contains platform-specific binaries" > pubscan/bin/__init__.py
-          # Create a MANIFEST.in file to ensure binary files are included
-          echo "include pubscan/bin/*" > MANIFEST.in
+      # Remove manual Rust build and file preparation steps
+      # Maturin, invoked by cibuildwheel, will handle building the Rust binary
+      # and packaging the Python code from the 'python' directory specified
+      # in pyproject.toml [tool.maturin]
 
       - name: Build wheels
-        working-directory: crates/ruff_api_analyzer/python
+        # Run cibuildwheel from the directory containing pyproject.toml
+        working-directory: crates/ruff_api_analyzer 
         run: |
-          # Check if the binary exists before building
-          python -c "import os, sys; bin_exists = os.path.exists('pubscan/bin/api-analyzer') or os.path.exists('pubscan/bin/api-analyzer.exe'); print(f'Binary exists: {bin_exists}'); sys.exit(0 if bin_exists else 1)"
-          # Build wheels with cibuildwheel
-          python -m cibuildwheel --output-dir wheelhouse --debug
+          python -m cibuildwheel --output-dir wheelhouse
         env:
           # Keep this: tells cibuildwheel not to run auditwheel/delocate/etc.
+          # Maturin handles linking correctly.
           CIBW_REPAIR_WHEEL_COMMAND: ""
-          # This installs the package locally before building, which might be needed
-          CIBW_BEFORE_BUILD: "pip install -e ."
-          # Keep CIBUILDWHEEL=1 if your setup.py uses it
-          CIBW_ENVIRONMENT: "CIBUILDWHEEL=1"
+          # Skip architectures not needed or causing issues
           CIBW_SKIP: "pp* *-musllinux*"
-          CIBW_BUILD: "cp39-* cp310-* cp311-* cp312-* cp313-*"
+          # Specify Python versions to build for
+          CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-* cp312-*"
+          # No longer need CIBW_BEFORE_BUILD or CIBW_ENVIRONMENT
 
       - name: Check wheel contents
-        working-directory: crates/ruff_api_analyzer/python
+        working-directory: crates/ruff_api_analyzer # Check relative to where wheels were built
         run: |
           python -m pip install wheel
-          python -c "import glob, zipfile; wheels = glob.glob('wheelhouse/*.whl'); print(f'Found wheels: {wheels}'); [print(f'Contents of {w}: {sorted(zipfile.ZipFile(w).namelist())}') for w in wheels]"
+          python -c "import glob, zipfile; wheels = glob.glob('wheelhouse/*.whl'); print(f'Found wheels: {wheels}'); [print(f'Contents of {w}: {sorted(zipfile.ZipFile(w).namelist())}\n') for w in wheels]"
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
           name: wheels-${{ matrix.os }}
-          path: crates/ruff_api_analyzer/python/wheelhouse/*.whl
+          # Path relative to workspace root
+          path: crates/ruff_api_analyzer/wheelhouse/*.whl
 
   upload_to_pypi:
     name: Upload to PyPI
