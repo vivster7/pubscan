@@ -56,7 +56,7 @@ repair-wheel-command = ""
 # Specify archs for each platform
 [tool.cibuildwheel.linux]
 archs = ["auto"]
-before-all = ["apt-get update && apt-get install -y build-essential"]
+before-all = ["yum update -y && yum groupinstall -y 'Development Tools'"]
 
 [tool.cibuildwheel.windows]
 archs = ["auto"]
