@@ -73,7 +73,8 @@ archs = ["auto"]
 archs = ["auto"]
 
 [tool.cibuildwheel.macos]
-archs = ["x86_64", "arm64"]
+# Only build for arm64 on macOS for now
+archs = ["arm64"]
 
 # Remove tool.wheel section, not needed for maturin
 # [tool.wheel]

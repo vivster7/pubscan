@@ -39,6 +39,10 @@ jobs:
           CIBW_BUILD: "cp310-* cp311-* cp312-* cp313-*"
           # Install Rust inside the cibuildwheel environment using rustup
           CIBW_BEFORE_BUILD: "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain stable -y"
+          # Add macOS specific step to ensure the target stdlib is installed
+          CIBW_BEFORE_BUILD_MACOS: >
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain stable -y &&
+            rustup target add aarch64-apple-darwin
           # Add Cargo bin to PATH using CIBW_ENVIRONMENT for earlier access
           # Note: Path separators differ; GITHUB_WORKSPACE might be needed if $HOME isn't reliable
           CIBW_ENVIRONMENT: 'PATH="$HOME/.cargo/bin:$PATH"'
