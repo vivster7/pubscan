@@ -30,10 +30,10 @@ jobs:
           python -m pip install cibuildwheel
 
       - name: Build wheels
-        # Run cibuildwheel from the crate root (where new pyproject.toml is)
-        working-directory: crates/ruff_api_analyzer
+        # Run cibuildwheel from the repo root, specifying the package dir
+        # working-directory: crates/ruff_api_analyzer # No longer needed
         run: |
-          python -m cibuildwheel --output-dir python/wheelhouse
+          python -m cibuildwheel crates/ruff_api_analyzer --output-dir crates/ruff_api_analyzer/python/wheelhouse
         env:
           # Build for Python 3.10 - 3.13
           CIBW_BUILD: "cp310-* cp311-* cp312-* cp313-*"
@@ -52,16 +52,16 @@ jobs:
         # Test in a different directory to ensure it works standalone
         run: |
           # Create a temporary directory for testing
-          mkdir ../test_install
-          cd ../test_install
-          # Install one of the built wheels (wheels are now in python/wheelhouse)
-          python -m pip install --find-links=../python/wheelhouse pubscan
+          mkdir test_install # Relative to repo root
+          cd test_install
+          # Install one of the built wheels (wheels are now in crates/ruff_api_analyzer/python/wheelhouse)
+          python -m pip install --find-links=../crates/ruff_api_analyzer/python/wheelhouse pubscan
           # Test the installed binary
           api-analyzer --help
-        working-directory: crates/ruff_api_analyzer
+        # working-directory: crates/ruff_api_analyzer # Run from repo root
 
       - name: Check wheel contents
-        # Check relative to where wheels were built (python/wheelhouse)
+        # Check relative to where wheels were built (crates/ruff_api_analyzer/python/wheelhouse)
         working-directory: crates/ruff_api_analyzer/python
         run: |
           python -m pip install wheel
