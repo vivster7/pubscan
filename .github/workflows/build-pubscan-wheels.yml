@@ -24,11 +24,6 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: stable
-
       - name: Install cibuildwheel
         run: |
           python -m pip install --upgrade pip
@@ -52,6 +47,10 @@ jobs:
           CIBW_SKIP: "pp* *-musllinux*"
           # Specify Python versions to build for
           CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-* cp312-*"
+          # Install Rust inside the cibuildwheel environment
+          # Ensure Rust (cargo) is available for maturin
+          CIBW_BEFORE_BUILD: "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain stable -y"
+          CIBW_BEFORE_BUILD_WINDOWS: "Invoke-WebRequest https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe -OutFile rustup-init.exe; ./rustup-init.exe --default-toolchain stable -y"
           # No longer need CIBW_BEFORE_BUILD or CIBW_ENVIRONMENT
 
       - name: Check wheel contents
