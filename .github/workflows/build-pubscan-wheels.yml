@@ -39,17 +39,13 @@ jobs:
           CIBW_SKIP: "pp* *-musllinux*"
           # Specify Python versions (align with pyproject.toml)
           CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-* cp312-*"
-          # Install Rust inside the cibuildwheel environment using rustup and add cargo to the current PATH
-          CIBW_BEFORE_BUILD: >
-            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain stable -y &&
-            export PATH="$HOME/.cargo/bin:$PATH"
-          # Execute the Windows commands using PowerShell
-          CIBW_BEFORE_BUILD_WINDOWS: >
-            powershell -Command "
-              Invoke-WebRequest https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe -OutFile rustup-init.exe; 
-              ./rustup-init.exe --default-toolchain stable -y; 
-              $env:PATH += \";$env:USERPROFILE/.cargo/bin\"
-            "
+          # Install Rust inside the cibuildwheel environment using rustup
+          CIBW_BEFORE_BUILD: "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain stable -y"
+          CIBW_BEFORE_BUILD_WINDOWS: "powershell -Command \"Invoke-WebRequest https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe -OutFile rustup-init.exe; ./rustup-init.exe --default-toolchain stable -y\""
+          # Add Cargo bin to PATH using CIBW_ENVIRONMENT for earlier access
+          # Note: Path separators differ; GITHUB_WORKSPACE might be needed if $HOME isn't reliable
+          CIBW_ENVIRONMENT: 'PATH="$HOME/.cargo/bin:$PATH"'
+          CIBW_ENVIRONMENT_WINDOWS: 'PATH="%USERPROFILE%\\.cargo\\bin;%PATH%"'
           # No repair command needed, maturin handles tags
           CIBW_REPAIR_WHEEL_COMMAND: ""
 
