@@ -174,7 +174,7 @@ setup(
     ],
     # Force platform-specific wheel
     options={
-        "bdist_wheel": {"py_limited_api": False, "universal": False, "plat_name": True}
+        "bdist_wheel": {"py_limited_api": False, "universal": False}
     },
     cmdclass={
         "build_py": BuildRustBinary,
