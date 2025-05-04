@@ -73,8 +73,8 @@ jobs:
         run: |
           # Check if the binary exists before building
           python -c "import os, sys; bin_exists = os.path.exists('pubscan/bin/api-analyzer') or os.path.exists('pubscan/bin/api-analyzer.exe'); print(f'Binary exists: {bin_exists}'); sys.exit(0 if bin_exists else 1)"
-          # Make sure plat_name is set to True in the options - fixed quote syntax
-          python -c "import sys; f = open('setup.py', 'r'); content = f.read(); f.close(); if 'plat_name' not in content: content = content.replace('options={\"bdist_wheel\": {', 'options={\"bdist_wheel\": {\"plat_name\": True, '); f = open('setup.py', 'w'); f.write(content); f.close(); print('Updated setup.py')"
+          # Make sure plat_name is set to True in the options - simplified command
+          python -c "import sys; f = open('setup.py', 'r'); content = f.read(); f.close(); if 'plat_name' not in content: content = content.replace('options={\\\"bdist_wheel\\\": {', 'options={\\\"bdist_wheel\\\": {\\\"plat_name\\\": True, '); f = open('setup.py', 'w'); f.write(content); f.close(); print('Updated setup.py')"
           # Build wheels with cibuildwheel
           python -m cibuildwheel --output-dir wheelhouse --debug
 
