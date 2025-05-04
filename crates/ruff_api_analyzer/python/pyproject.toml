@@ -42,7 +42,7 @@ skip = ["pp*", "*-musllinux*"]
 build = ["cp39-*", "cp310-*", "cp311-*", "cp312-*", "cp313-*"]
 
 # Environment variables for all platforms
-environment = {CIBUILDWHEEL = "1"}
+environment = {CIBUILDWHEEL = "1", FORCE_BDIST_WHEEL_PLATFORM = "1"}
 
 # Commands to run before build
 before-build = ["pip install -e ."]
@@ -51,15 +51,20 @@ before-build = ["pip install -e ."]
 test-command = "pubscan --help"
 
 # Force platform tagging for wheels
-# This ensures cibuildwheel treats our wheels as platform-specific
-# even though they contain no native extensions directly
-repair-wheel-command = "true"
+repair-wheel-command = ""
 
+# Specify archs for each platform
 [tool.cibuildwheel.linux]
 archs = ["auto"]
+before-all = ["apt-get update && apt-get install -y build-essential"]
 
 [tool.cibuildwheel.windows]
 archs = ["auto"]
 
 [tool.cibuildwheel.macos]
 archs = ["x86_64", "arm64"]
+
+# Force binary wheels
+[tool.wheel]
+flat_destination = true
+force-platform-specific = true

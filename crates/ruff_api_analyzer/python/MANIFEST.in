@@ -1,1 +1,1 @@
-include pubscan/bin/api-analyzer*
+include pubscan/bin/*

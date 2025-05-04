@@ -21,7 +21,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.9'
+          python-version: '3.11'  # Use Python 3.11+ for cibuildwheel 3
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -45,45 +45,48 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           cargo build --release --package ruff_api_analyzer
-          mkdir -p crates/ruff_api_analyzer/python/pubscan/bin
-          copy target\release\api-analyzer.exe crates\ruff_api_analyzer\python\pubscan\bin\
-          dir crates\ruff_api_analyzer\python\pubscan\bin\
+          mkdir -Force -Path crates/ruff_api_analyzer/python/pubscan/bin
+          Copy-Item -Path "target\release\api-analyzer.exe" -Destination "crates\ruff_api_analyzer\python\pubscan\bin\"
+          Get-ChildItem -Path "crates\ruff_api_analyzer\python\pubscan\bin\"
 
-      - name: Prepare wheel build
+      - name: Create binary marker file to force platform wheel
         run: |
-          # Create a MANIFEST.in file to ensure binary files are included
           cd crates/ruff_api_analyzer/python
+          # Create an __init__.py file in the bin directory
+          echo "# This directory contains platform-specific binaries" > pubscan/bin/__init__.py
+          # Create a MANIFEST.in file to ensure binary files are included
           echo "include pubscan/bin/*" > MANIFEST.in
-          cat MANIFEST.in
+          # Create a .dist-info/WHEEL file marker to force platform specificity
+          mkdir -p .dist-info
+          echo "[bdist_wheel]" > .dist-info/WHEEL
+          echo "py-api-version=1.0" >> .dist-info/WHEEL
+          echo "platform=true" >> .dist-info/WHEEL
 
       - name: Build wheels
+        env:
+          # Force cibuildwheel to treat wheels as platform-specific
+          CIBW_REPAIR_WHEEL_COMMAND: ""
+          CIBW_BEFORE_BUILD: "pip install -e ."
+          CIBW_ENVIRONMENT: "CIBUILDWHEEL=1 FORCE_BDIST_WHEEL_PLATFORM=1"
+          CIBW_SKIP: "pp* *-musllinux*"
+          CIBW_BUILD: "cp39-* cp310-* cp311-* cp312-* cp313-*"
         run: |
-          # Change to the Python package directory
           cd crates/ruff_api_analyzer/python
           # Check if the binary exists before building
-          python -c "import os; print('Binary exists:',os.path.exists('pubscan/bin/api-analyzer') or os.path.exists('pubscan/bin/api-analyzer.exe'))"
+          python -c "import os, sys; bin_exists = os.path.exists('pubscan/bin/api-analyzer') or os.path.exists('pubscan/bin/api-analyzer.exe'); print(f'Binary exists: {bin_exists}'); sys.exit(0 if bin_exists else 1)"
+          # Add platform tag to setup.py
+          python -c "import sys; f = open('setup.py', 'r'); content = f.read(); f.close(); f = open('setup.py', 'w'); f.write(content.replace('cmdclass={', 'options={\"bdist_wheel\": {\"py_limited_api\": False, \"plat_name\": True}},\\n    cmdclass={').replace('setup(', 'from wheel.bdist_wheel import bdist_wheel\\nclass BinaryDistWheel(bdist_wheel):\\n    def finalize_options(self):\\n        self.root_is_pure = False\\n        bdist_wheel.finalize_options(self)\\n\\nsetup(')); f.close(); print('Updated setup.py')"
           # Build wheels with cibuildwheel
-          python -m cibuildwheel --output-dir wheelhouse
-        env:
-          # Skip PyPy builds 
-          CIBW_SKIP: "pp* *-musllinux*"
-          # Build for Python 3.9 through 3.13
-          CIBW_BUILD: "cp39-* cp310-* cp311-* cp312-* cp313-*"
-          # Configure cibuildwheel to build the Rust binary before packaging
-          CIBW_BEFORE_BUILD: "pip install -e ."
-          # Environment variable to tell our setup.py not to build the binary (cibuildwheel will handle that)
-          CIBW_ENVIRONMENT: "CIBUILDWHEEL=1"
-          # Do not repair wheels since we're not using native extensions directly
-          CIBW_REPAIR_WHEEL_COMMAND: "true"
+          python -m cibuildwheel --output-dir wheelhouse --debug
 
       - name: Check wheel contents 
         run: |
           cd crates/ruff_api_analyzer/python
-          python -m pip install wheel zipfile-inspector
+          python -m pip install wheel
           ls -la wheelhouse/
           for wheel in wheelhouse/*.whl; do
             echo "Inspecting $wheel"
-            python -m zipfile_inspector $wheel | grep -i bin || echo "No bin directory found in wheel"
+            python -c "import zipfile; f = zipfile.ZipFile('$wheel'); print('\n'.join(f.namelist()))" | grep -i bin || echo "No bin directory found in wheel"
           done
 
       - name: Upload wheels

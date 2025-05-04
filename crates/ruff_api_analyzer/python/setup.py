@@ -12,6 +12,29 @@ from pathlib import Path
 from setuptools import find_packages, setup
 from setuptools.command.build_py import build_py
 from setuptools.command.develop import develop
+from wheel.bdist_wheel import bdist_wheel
+
+
+# Force binary distribution
+class BdistWheelPlatform(bdist_wheel):
+    def finalize_options(self):
+        self.root_is_pure = False
+        bdist_wheel.finalize_options(self)
+
+    def get_tag(self):
+        # Force platform-specific tag
+        python_tag, abi_tag, platform_tag = bdist_wheel.get_tag(self)
+        if platform.system() == "Windows":
+            platform_tag = "win_amd64"
+        elif platform.system() == "Darwin":
+            platform_tag = (
+                "macosx_10_9_x86_64"
+                if platform.machine() != "arm64"
+                else "macosx_11_0_arm64"
+            )
+        elif platform.system() == "Linux":
+            platform_tag = "manylinux2014_x86_64"
+        return python_tag, abi_tag, platform_tag
 
 
 # Read the version from __init__.py
@@ -34,6 +57,13 @@ class BuildRustBinary(build_py):
         cibuildwheel = os.environ.get("CIBUILDWHEEL") == "1"
         bin_dir = Path(__file__).parent / "pubscan" / "bin"
         bin_dir.mkdir(exist_ok=True)
+
+        # Create an __init__.py file in the bin directory to make it a proper package
+        init_file = bin_dir / "__init__.py"
+        if not init_file.exists():
+            init_file.write_text(
+                "# This directory contains platform-specific binaries\n"
+            )
 
         # Figure out the output binary path
         binary_name = (
@@ -113,6 +143,15 @@ init_file = bin_dir / "__init__.py"
 if not init_file.exists():
     init_file.write_text("# Binary directory\n")
 
+from wheel.bdist_wheel import bdist_wheel
+
+
+class BinaryDistWheel(bdist_wheel):
+    def finalize_options(self):
+        self.root_is_pure = False
+        bdist_wheel.finalize_options(self)
+
+
 setup(
     name="pubscan",
     version=get_version(),
@@ -142,9 +181,12 @@ setup(
             ],
         )
     ],
+    # Force platform-specific wheel
+    options={"bdist_wheel": {"py_limited_api": False, "universal": False}},
     cmdclass={
         "build_py": BuildRustBinary,
         "develop": DevelopRustBinary,
+        "bdist_wheel": BdistWheelPlatform,
     },
     entry_points={
         "console_scripts": [
