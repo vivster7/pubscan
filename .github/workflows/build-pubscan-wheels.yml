@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Get all history for proper version detection
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -29,32 +29,38 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install cibuildwheel
 
-      # Remove manual Rust build and file preparation steps
-      # Maturin, invoked by cibuildwheel, will handle building the Rust binary
-      # and packaging the Python code from the 'python' directory specified
-      # in pyproject.toml [tool.maturin]
-
       - name: Build wheels
         # Run cibuildwheel from the directory containing pyproject.toml
-        working-directory: crates/ruff_api_analyzer 
+        working-directory: crates/ruff_api_analyzer/python
         run: |
           python -m cibuildwheel --output-dir wheelhouse
         env:
-          # Keep this: tells cibuildwheel not to run auditwheel/delocate/etc.
-          # Maturin handles linking correctly.
-          CIBW_REPAIR_WHEEL_COMMAND: ""
-          # Skip architectures not needed or causing issues
+          # Skip architectures not needed
           CIBW_SKIP: "pp* *-musllinux*"
-          # Specify Python versions to build for
+          # Specify Python versions (align with pyproject.toml)
           CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-* cp312-*"
-          # Install Rust inside the cibuildwheel environment
-          # Ensure Rust (cargo) is available for maturin
-          CIBW_BEFORE_BUILD: "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain stable -y"
-          CIBW_BEFORE_BUILD_WINDOWS: "Invoke-WebRequest https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe -OutFile rustup-init.exe; ./rustup-init.exe --default-toolchain stable -y"
-          # No longer need CIBW_BEFORE_BUILD or CIBW_ENVIRONMENT
+          # Install Rust inside the cibuildwheel environment using rustup
+          CIBW_BEFORE_BUILD: "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain stable -y && echo $HOME/.cargo/bin >> $GITHUB_PATH"
+          # Use forward slashes for path, append to GITHUB_PATH
+          CIBW_BEFORE_BUILD_WINDOWS: "Invoke-WebRequest https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe -OutFile rustup-init.exe; ./rustup-init.exe --default-toolchain stable -y; echo $env:USERPROFILE/.cargo/bin | Out-File -Encoding utf8 -Append $env:GITHUB_PATH"
+          # No repair command needed, maturin handles tags
+          CIBW_REPAIR_WHEEL_COMMAND: ""
+
+      - name: Install and Test Wheel
+        # Test in a different directory to ensure it works standalone
+        run: |
+          # Create a temporary directory for testing
+          mkdir ../test_install
+          cd ../test_install
+          # Install one of the built wheels
+          python -m pip install --find-links=../python/wheelhouse pubscan
+          # Test the installed binary
+          api-analyzer --help
+        working-directory: crates/ruff_api_analyzer
 
       - name: Check wheel contents
-        working-directory: crates/ruff_api_analyzer # Check relative to where wheels were built
+        # Check relative to where wheels were built
+        working-directory: crates/ruff_api_analyzer/python
         run: |
           python -m pip install wheel
           python -c "import glob, zipfile; wheels = glob.glob('wheelhouse/*.whl'); print(f'Found wheels: {wheels}'); [print(f'Contents of {w}: {sorted(zipfile.ZipFile(w).namelist())}\n') for w in wheels]"
