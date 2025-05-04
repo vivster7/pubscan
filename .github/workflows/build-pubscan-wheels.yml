@@ -30,10 +30,10 @@ jobs:
           python -m pip install cibuildwheel
 
       - name: Build wheels
-        # Run cibuildwheel from the directory containing pyproject.toml
-        working-directory: crates/ruff_api_analyzer/python
+        # Run cibuildwheel from the crate root (where new pyproject.toml is)
+        working-directory: crates/ruff_api_analyzer
         run: |
-          python -m cibuildwheel --output-dir wheelhouse
+          python -m cibuildwheel --output-dir python/wheelhouse
         env:
           # Build for Python 3.10 - 3.13
           CIBW_BUILD: "cp310-* cp311-* cp312-* cp313-*"
@@ -42,9 +42,8 @@ jobs:
           # Add macOS specific step to ensure the target stdlib is installed
           CIBW_BEFORE_BUILD_MACOS: >
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain stable -y &&
-            rustup target add aarch64-apple-darwin
+            rustup target add aarch64-apple-darwin # Target arm64
           # Add Cargo bin to PATH using CIBW_ENVIRONMENT for earlier access
-          # Note: Path separators differ; GITHUB_WORKSPACE might be needed if $HOME isn't reliable
           CIBW_ENVIRONMENT: 'PATH="$HOME/.cargo/bin:$PATH"'
           # No repair command needed, maturin handles tags
           CIBW_REPAIR_WHEEL_COMMAND: ""
@@ -55,14 +54,14 @@ jobs:
           # Create a temporary directory for testing
           mkdir ../test_install
           cd ../test_install
-          # Install one of the built wheels
+          # Install one of the built wheels (wheels are now in python/wheelhouse)
           python -m pip install --find-links=../python/wheelhouse pubscan
           # Test the installed binary
           api-analyzer --help
         working-directory: crates/ruff_api_analyzer
 
       - name: Check wheel contents
-        # Check relative to where wheels were built
+        # Check relative to where wheels were built (python/wheelhouse)
         working-directory: crates/ruff_api_analyzer/python
         run: |
           python -m pip install wheel
@@ -73,7 +72,7 @@ jobs:
         with:
           name: wheels-${{ matrix.os }}
           # Path relative to workspace root
-          path: crates/ruff_api_analyzer/wheelhouse/*.whl
+          path: crates/ruff_api_analyzer/python/wheelhouse/*.whl
 
   upload_to_pypi:
     name: Upload to PyPI
