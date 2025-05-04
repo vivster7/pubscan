@@ -45,13 +45,13 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           cargo build --release --package ruff_api_analyzer
-          mkdir -Force -Path crates/ruff_api_analyzer/python/pubscan/bin
-          Copy-Item -Path "target\release\api-analyzer.exe" -Destination "crates\ruff_api_analyzer\python\pubscan\bin\"
-          Get-ChildItem -Path "crates\ruff_api_analyzer\python\pubscan\bin\"
+          mkdir -Force crates/ruff_api_analyzer/python/pubscan/bin
+          Copy-Item target/release/api-analyzer.exe crates/ruff_api_analyzer/python/pubscan/bin/
+          Get-ChildItem crates/ruff_api_analyzer/python/pubscan/bin/
 
       - name: Create binary marker file to force platform wheel
+        working-directory: crates/ruff_api_analyzer/python
         run: |
-          cd crates/ruff_api_analyzer/python
           # Create an __init__.py file in the bin directory
           echo "# This directory contains platform-specific binaries" > pubscan/bin/__init__.py
           # Create a MANIFEST.in file to ensure binary files are included
@@ -63,31 +63,27 @@ jobs:
           echo "platform=true" >> .dist-info/WHEEL
 
       - name: Build wheels
+        working-directory: crates/ruff_api_analyzer/python
         env:
-          # Force cibuildwheel to treat wheels as platform-specific
           CIBW_REPAIR_WHEEL_COMMAND: ""
           CIBW_BEFORE_BUILD: "pip install -e ."
           CIBW_ENVIRONMENT: "CIBUILDWHEEL=1 FORCE_BDIST_WHEEL_PLATFORM=1"
           CIBW_SKIP: "pp* *-musllinux*"
           CIBW_BUILD: "cp39-* cp310-* cp311-* cp312-* cp313-*"
         run: |
-          cd crates/ruff_api_analyzer/python
           # Check if the binary exists before building
           python -c "import os, sys; bin_exists = os.path.exists('pubscan/bin/api-analyzer') or os.path.exists('pubscan/bin/api-analyzer.exe'); print(f'Binary exists: {bin_exists}'); sys.exit(0 if bin_exists else 1)"
-          # Make sure plat_name is set to True in the options
-          python -c "import sys; f = open('setup.py', 'r'); content = f.read(); f.close(); if 'plat_name' not in content: f = open('setup.py', 'w'); f.write(content.replace('options={\\\"bdist_wheel\\\": {\\\"py_limited_api\\\": False, \\\"universal\\\": False}}', 'options={\\\"bdist_wheel\\\": {\\\"py_limited_api\\\": False, \\\"universal\\\": False, \\\"plat_name\\\": True}}')); f.close(); print('Updated setup.py')"
+          # Make sure plat_name is set to True in the options - using simpler approach to avoid escaping issues
+          python -c "import sys; f = open('setup.py', 'r'); content = f.read(); f.close(); if 'plat_name' not in content: content = content.replace('options={\"bdist_wheel\": {', 'options={\"bdist_wheel\": {\"plat_name\": True, '); f = open('setup.py', 'w'); f.write(content); f.close(); print('Updated setup.py')"
           # Build wheels with cibuildwheel
           python -m cibuildwheel --output-dir wheelhouse --debug
 
-      - name: Check wheel contents 
+      - name: Check wheel contents
+        if: runner.os != 'Windows'
+        working-directory: crates/ruff_api_analyzer/python
         run: |
-          cd crates/ruff_api_analyzer/python
-          python -m pip install wheel
           ls -la wheelhouse/
-          for wheel in wheelhouse/*.whl; do
-            echo "Inspecting $wheel"
-            python -c "import zipfile; f = zipfile.ZipFile('$wheel'); print('\n'.join(f.namelist()))" | grep -i bin || echo "No bin directory found in wheel"
-          done
+          unzip -l wheelhouse/*.whl || echo "Failed to list wheel contents"
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
@@ -95,26 +91,27 @@ jobs:
           name: wheels-${{ matrix.os }}
           path: crates/ruff_api_analyzer/python/wheelhouse/*.whl
 
-  upload_pypi:
+  upload_to_pypi:
     name: Upload to PyPI
-    needs: [build_wheels]
+    needs: build_wheels
     runs-on: ubuntu-latest
-    # Only release to PyPI on tag pushes
-    if: github.event_name == 'release' && startsWith(github.ref, 'refs/tags/')
+    # Only run on tags or manually triggered workflows
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    
     steps:
       - uses: actions/download-artifact@v4
         with:
+          pattern: wheels-*
+          merge-multiple: true
           path: dist
-
-      - name: Prepare distribution files
-        run: |
-          mkdir -p dist_upload
-          find dist -name "*.whl" -exec cp {} dist_upload \;
-          ls -la dist_upload/
-
-      - name: Upload to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          user: __token__
-          password: ${{ secrets.PYPI_API_TOKEN }}
-          packages-dir: dist_upload/
+      
+      - name: List wheels to upload
+        run: ls -la dist/
+      
+      # Uncomment when ready to deploy to PyPI
+      # - name: Upload to PyPI
+      #   uses: pypa/gh-action-pypi-publish@release/v1
+      #   with:
+      #     password: ${{ secrets.PYPI_API_TOKEN }}
+      #     # Use the following for TestPyPI
+      #     # repository-url: https://test.pypi.org/legacy/
