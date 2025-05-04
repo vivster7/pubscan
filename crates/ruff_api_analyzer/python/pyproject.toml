@@ -49,8 +49,8 @@ manifest-path = "../Cargo.toml"
 # Skip PyPy and musllinux
 skip = ["pp*", "*-musllinux*"]
 
-# Build for CPython 3.8+
-build = ["cp38-*", "cp39-*", "cp310-*", "cp311-*", "cp312-*"]
+# Build for CPython 3.10 - 3.13
+build = ["cp310-*", "cp311-*", "cp312-*", "cp313-*"]
 
 # Remove environment settings previously needed for setuptools
 # environment = {CIBUILDWHEEL = "1", FORCE_BDIST_WHEEL_PLATFORM = "1"}
