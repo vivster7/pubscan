@@ -43,10 +43,13 @@ jobs:
           CIBW_BEFORE_BUILD: >
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain stable -y &&
             export PATH="$HOME/.cargo/bin:$PATH"
+          # Execute the Windows commands using PowerShell
           CIBW_BEFORE_BUILD_WINDOWS: >
-            Invoke-WebRequest https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe -OutFile rustup-init.exe; 
-            ./rustup-init.exe --default-toolchain stable -y; 
-            $env:PATH += ";$env:USERPROFILE/.cargo/bin"
+            powershell -Command "
+              Invoke-WebRequest https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe -OutFile rustup-init.exe; 
+              ./rustup-init.exe --default-toolchain stable -y; 
+              $env:PATH += \";$env:USERPROFILE/.cargo/bin\"
+            "
           # No repair command needed, maturin handles tags
           CIBW_REPAIR_WHEEL_COMMAND: ""
 
