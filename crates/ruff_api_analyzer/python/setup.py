@@ -12,29 +12,6 @@ from pathlib import Path
 from setuptools import find_packages, setup
 from setuptools.command.build_py import build_py
 from setuptools.command.develop import develop
-from wheel.bdist_wheel import bdist_wheel
-
-
-# Force binary distribution
-class BdistWheelPlatform(bdist_wheel):
-    def finalize_options(self):
-        self.root_is_pure = False
-        bdist_wheel.finalize_options(self)
-
-    def get_tag(self):
-        # Force platform-specific tag
-        python_tag, abi_tag, platform_tag = bdist_wheel.get_tag(self)
-        if platform.system() == "Windows":
-            platform_tag = "win_amd64"
-        elif platform.system() == "Darwin":
-            platform_tag = (
-                "macosx_10_9_x86_64"
-                if platform.machine() != "arm64"
-                else "macosx_11_0_arm64"
-            )
-        elif platform.system() == "Linux":
-            platform_tag = "manylinux2014_x86_64"
-        return python_tag, abi_tag, platform_tag
 
 
 # Read the version from __init__.py
@@ -172,14 +149,17 @@ setup(
             ],
         )
     ],
-    # Force platform-specific wheel
+    # Force platform-specific wheel by indicating it's not pure Python
     options={
-        "bdist_wheel": {"py_limited_api": False, "universal": False}
+        "bdist_wheel": {
+            "py_limited_api": False,
+            "universal": False,
+            "root_is_pure": False,
+        }
     },
     cmdclass={
         "build_py": BuildRustBinary,
         "develop": DevelopRustBinary,
-        "bdist_wheel": BdistWheelPlatform,
     },
     entry_points={
         "console_scripts": [

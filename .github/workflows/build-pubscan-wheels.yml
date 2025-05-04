@@ -49,18 +49,13 @@ jobs:
           copy target\release\api-analyzer.exe crates\ruff_api_analyzer\python\pubscan\bin\
           dir crates\ruff_api_analyzer\python\pubscan\bin\
 
-      - name: Create binary marker file to force platform wheel
+      - name: Prepare package files
         working-directory: crates/ruff_api_analyzer/python
         run: |
           # Create an __init__.py file in the bin directory
           echo "# This directory contains platform-specific binaries" > pubscan/bin/__init__.py
           # Create a MANIFEST.in file to ensure binary files are included
           echo "include pubscan/bin/*" > MANIFEST.in
-          # Create a .dist-info/WHEEL file marker to force platform specificity
-          mkdir -p .dist-info
-          echo "[bdist_wheel]" > .dist-info/WHEEL
-          echo "py-api-version=1.0" >> .dist-info/WHEEL
-          echo "platform=true" >> .dist-info/WHEEL
 
       - name: Build wheels
         working-directory: crates/ruff_api_analyzer/python
@@ -75,7 +70,6 @@ jobs:
           # This installs the package locally before building, which might be needed
           CIBW_BEFORE_BUILD: "pip install -e ."
           # Keep CIBUILDWHEEL=1 if your setup.py uses it
-          # Remove FORCE_BDIST_WHEEL_PLATFORM=1 as it's likely no longer needed
           CIBW_ENVIRONMENT: "CIBUILDWHEEL=1"
           CIBW_SKIP: "pp* *-musllinux*"
           CIBW_BUILD: "cp39-* cp310-* cp311-* cp312-* cp313-*"
