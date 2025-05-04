@@ -64,7 +64,8 @@ build = ["cp310-*"]
 # repair-wheel-command = ""
 
 [tool.cibuildwheel.linux]
-archs = ["auto"]
+# Explicitly build only x86_64
+archs = ["x86_64"]
 # Remove before-all, Rust install handled by CIBW_BEFORE_BUILD in workflow
 # before-all = ["yum update -y && yum groupinstall -y 'Development Tools'"]
 
