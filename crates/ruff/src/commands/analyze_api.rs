@@ -103,8 +103,8 @@ impl ApiAnalyzer {
     ) -> Self {
         let usage_counts = Arc::new(Mutex::new(
             candidates
-                .iter()
-                .map(|(name, _)| (name.clone(), (0, HashSet::new())))
+                .keys()
+                .map(|name| (name.clone(), (0, HashSet::new())))
                 .collect::<SymbolUsageMap>(),
         ));
 
@@ -292,7 +292,7 @@ impl<'a> ApiAnalyzerVisitor<'a> {
                                 .analyzer
                                 .record_symbol_usage(simple_module_name, self.file_path)
                             {
-                                debug!("Error recording symbol usage: {}", e);
+                                debug!("Error recording symbol usage: {e}");
                             }
                             self.file_state
                                 .mark_processed(simple_module_name.to_string());
@@ -360,7 +360,7 @@ impl<'a> ApiAnalyzerVisitor<'a> {
                                     if let Err(e) =
                                         self.analyzer.record_symbol_usage(name, self.file_path)
                                     {
-                                        debug!("Error recording symbol usage: {}", e);
+                                        debug!("Error recording symbol usage: {e}");
                                     }
                                     self.file_state.mark_processed(name.to_string());
                                 }
@@ -380,7 +380,7 @@ impl<'a> ApiAnalyzerVisitor<'a> {
             && !self.file_state.is_processed(symbol)
         {
             if let Err(e) = self.analyzer.record_symbol_usage(symbol, self.file_path) {
-                debug!("Error recording symbol usage: {}", e);
+                debug!("Error recording symbol usage: {e}");
             }
         }
     }
@@ -428,7 +428,7 @@ impl<'a> ApiAnalyzerVisitor<'a> {
                             .analyzer
                             .record_symbol_usage(accessed_attr, self.file_path)
                         {
-                            debug!("Error recording symbol usage: {}", e);
+                            debug!("Error recording symbol usage: {e}");
                         }
                     }
                 }
@@ -437,7 +437,7 @@ impl<'a> ApiAnalyzerVisitor<'a> {
     }
 }
 
-impl<'a> AstVisitor for ApiAnalyzerVisitor<'a> {
+impl AstVisitor for ApiAnalyzerVisitor<'_> {
     fn visit_stmt(&mut self, stmt: &ast::Stmt) {
         match stmt {
             // Expression statement (standalone expression)
@@ -728,7 +728,6 @@ pub fn analyze_api(
 ) -> Result<ExitStatus> {
     // Resolve project configuration
     let pyproject_config = resolve::resolve(config_arguments, None)?;
-    let _settings = &pyproject_config.settings;
 
     info!("Analyzing API for: {}", args.target_path.display());
     if args.no_parallel {
@@ -742,15 +741,12 @@ pub fn analyze_api(
         anyhow::bail!("Target path does not exist: {}", args.target_path.display());
     }
 
-    // Determine target boundary
-    let target_boundary = determine_target_boundary(&args.target_path)?;
-
     // Find all Python files in the project (including the target)
     let project_root = if let Some(root) = &args.project_root {
         info!("Using explicit project root: {}", root.display());
         root.clone()
     } else {
-        let detected_root = detect_project_root(&args.target_path)?;
+        let detected_root = detect_project_root(&args.target_path);
         info!("Auto-detected project root: {}", detected_root.display());
         detected_root
     };
@@ -768,7 +764,7 @@ pub fn analyze_api(
         );
     }
 
-    let files = resolve_default_files(vec![project_root.to_path_buf()], false);
+    let files = resolve_default_files(vec![project_root], false);
     let (paths, resolver) = python_files_in_path(&files, &pyproject_config, config_arguments)?;
 
     if paths.is_empty() {
@@ -781,6 +777,9 @@ pub fn analyze_api(
     // Collect all project Python files and divide them into target and external files
     let mut target_files = Vec::new();
     let mut external_files = Vec::new();
+
+    // Determine target boundary
+    let target_boundary = determine_target_boundary(&args.target_path);
 
     // First, ensure the target file(s) are included for analysis, even if outside project root
     if !is_target_within_project {
@@ -797,7 +796,7 @@ pub fn analyze_api(
         else if args.target_path.is_dir() {
             for entry in WalkDir::new(&args.target_path)
                 .into_iter()
-                .filter_map(|e| e.ok())
+                .filter_map(Result::ok)
             {
                 let path = entry.path();
                 if is_python_file(path) {
@@ -816,24 +815,22 @@ pub fn analyze_api(
     }
 
     // Now process all files from the project
-    for resolved_result in paths {
-        if let Ok(resolved_file) = resolved_result {
-            let path = resolved_file.path().to_path_buf();
-            trace!("Considering path: {}", path.display());
+    for resolved_file in paths.into_iter().flatten() {
+        let path = resolved_file.path().to_path_buf();
+        trace!("Considering path: {}", path.display());
 
-            // Determine if this file is within the target boundary
-            if is_file_within_target(&target_boundary, &path) {
-                trace!("Added to target files: {}", path.display());
-                target_files.push((path.clone(), resolved_file));
-            } else {
-                // Skip test files if enabled
-                if args.ignore_test_files && is_test_file(&path) {
-                    trace!("Skipping test file: {}", path.display());
-                    continue;
-                }
-                trace!("Added to external files: {}", path.display());
-                external_files.push((path.clone(), resolved_file));
+        // Determine if this file is within the target boundary
+        if is_file_within_target(&target_boundary, &path) {
+            trace!("Added to target files: {}", path.display());
+            target_files.push((path.clone(), resolved_file));
+        } else {
+            // Skip test files if enabled
+            if args.ignore_test_files && is_test_file(&path) {
+                trace!("Skipping test file: {}", path.display());
+                continue;
             }
+            trace!("Added to external files: {}", path.display());
+            external_files.push((path.clone(), resolved_file));
         }
     }
 
@@ -896,7 +893,7 @@ fn analyze_external_with_semantic_model(
             "Processing {} external files sequentially",
             external_files.len()
         );
-        external_files.iter().for_each(|(path, resolved_file)| {
+        for (path, resolved_file) in external_files {
             debug!("Analyzing external file: {}", path.display());
 
             // Read and parse the file content
@@ -922,7 +919,7 @@ fn analyze_external_with_semantic_model(
                     debug!("Error reading file {}: {}", path.display(), e);
                 }
             }
-        });
+        }
     } else {
         // Process external files in parallel
         debug!(
@@ -1045,7 +1042,7 @@ fn output_results(public_api: &[ApiSymbol], args: &AnalyzeApiArgs) -> Result<()>
 
             // Serialize to JSON and print
             let json = serde_json::to_string_pretty(&output)?;
-            println!("{}", json);
+            println!("{json}");
         }
 
         // Default to text output
@@ -1159,7 +1156,7 @@ fn output_results(public_api: &[ApiSymbol], args: &AnalyzeApiArgs) -> Result<()>
 }
 
 /// Determine the project root by looking for pyproject.toml or package markers
-fn detect_project_root(target_path: &Path) -> Result<PathBuf> {
+fn detect_project_root(target_path: &Path) -> PathBuf {
     let mut current_dir = if target_path.is_file() {
         target_path.parent().map(Path::to_path_buf)
     } else {
@@ -1171,20 +1168,20 @@ fn detect_project_root(target_path: &Path) -> Result<PathBuf> {
         // Check for pyproject.toml
         let pyproject_path = dir.join("pyproject.toml");
         if pyproject_path.exists() {
-            return Ok(dir);
+            return dir;
         }
 
         // Check for setup.py or setup.cfg (common Python project markers)
         let setup_py_path = dir.join("setup.py");
         let setup_cfg_path = dir.join("setup.cfg");
         if setup_py_path.exists() || setup_cfg_path.exists() {
-            return Ok(dir);
+            return dir;
         }
 
         // Check for src directory with __init__.py (common Python project structure)
         let src_init_path = dir.join("src").join("__init__.py");
         if src_init_path.exists() {
-            return Ok(dir);
+            return dir;
         }
 
         // Move up to parent directory
@@ -1192,25 +1189,25 @@ fn detect_project_root(target_path: &Path) -> Result<PathBuf> {
     }
 
     // If no project markers found, default to the parent directory of the target
-    Ok(if target_path.is_file() {
+    if target_path.is_file() {
         target_path
             .parent()
             .map_or_else(|| Path::new(".").to_path_buf(), Path::to_path_buf)
     } else {
         target_path.to_path_buf()
-    })
+    }
 }
 
 /// Check if a path is a Python file
 fn is_python_file(path: &Path) -> bool {
     path.is_file()
-        && path.extension().map_or(false, |ext| {
-            ext.eq_ignore_ascii_case("py") || ext.eq_ignore_ascii_case("pyi")
-        })
+        && path
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("py") || ext.eq_ignore_ascii_case("pyi"))
 }
 
 /// Determine the target boundary of the target module/package
-fn determine_target_boundary(target_path: &Path) -> Result<Vec<PathBuf>> {
+fn determine_target_boundary(target_path: &Path) -> Vec<PathBuf> {
     debug!("Target path: {}", target_path.display());
 
     let mut boundary = Vec::new();
@@ -1252,10 +1249,10 @@ fn determine_target_boundary(target_path: &Path) -> Result<Vec<PathBuf>> {
     }
 
     debug!("Found {} files in boundary", boundary.len());
-    Ok(boundary)
+    boundary
 }
 
-/// Check whether a file is within the target boundary, using canonical paths for comparison.
+/// Check if a file is within the target boundary, using canonical paths for comparison.
 fn is_file_within_target(boundary: &[PathBuf], file_path: &Path) -> bool {
     // Get canonical path for the file being checked
     let canonical_file_path =
@@ -1293,7 +1290,7 @@ fn is_file_within_target(boundary: &[PathBuf], file_path: &Path) -> bool {
     }
 }
 
-/// Extract candidate symbols from the target files using SemanticModel
+/// Extract candidate symbols from the target files using `SemanticModel`
 fn extract_candidate_symbols(
     target_files: &[(PathBuf, ResolvedFile)],
     _resolver: &Resolver,
@@ -1369,7 +1366,7 @@ fn extract_candidate_symbols(
                                 let is_private = id.starts_with('_')
                                     && !id.starts_with("__")
                                     && !id.ends_with("__");
-                                let fully_qualified_name = format!("{}.{}", module_name, id);
+                                let fully_qualified_name = format!("{module_name}.{id}");
 
                                 // Check if this is an __all__ definition
                                 if id == "__all__" {
@@ -1558,11 +1555,11 @@ mod tests {
         File::create(&module_path)?;
 
         // Test with target path as the module
-        let root = detect_project_root(&module_path.to_path_buf())?;
+        let root = detect_project_root(&module_path);
         assert_eq!(root, project_dir);
 
         // Test with target path as the project dir
-        let root = detect_project_root(&project_dir.to_path_buf())?;
+        let root = detect_project_root(&project_dir);
         assert_eq!(root, project_dir);
 
         Ok(())
@@ -1585,7 +1582,7 @@ mod tests {
         File::create(&module_path)?;
 
         // Test with target path as the module
-        let root = detect_project_root(&module_path.to_path_buf())?;
+        let root = detect_project_root(&module_path);
         assert_eq!(root, project_dir);
 
         Ok(())
@@ -1602,7 +1599,7 @@ mod tests {
         File::create(&module_path)?;
 
         // Test with target path as the module
-        let root = detect_project_root(&module_path.to_path_buf())?;
+        let root = detect_project_root(&module_path);
         assert_eq!(root, project_dir); // Should resolve to parent directory
 
         Ok(())
