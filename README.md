@@ -1,6 +1,9 @@
 # Pubscan
 
-Pubscan is a tool to analyze internal APIs of Python packages. It's built on top of [ruff](https://github.com/astral-sh/ruff).
+Pubscan is a tool to analyze internal APIs of Python packages. It's built from a fork of [ruff](https://github.com/astral-sh/ruff).
+
+## Development
+See crates/ruff_api_analyzer/README.md
 
 ## Example
 
