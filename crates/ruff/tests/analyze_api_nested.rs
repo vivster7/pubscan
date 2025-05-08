@@ -22,7 +22,9 @@ fn command() -> Command {
 const INSTA_FILTERS: &[(&str, &str)] = &[
     // Rewrite Windows output to Unix output
     (r"\\", "/"),
-    // Redact temporary paths
+    // Redact temporary paths (macOS)
+    (r"/var/folders/[^/]+/[^/]+/[^/]+/[^/]+/\.tmp[^/]+", "[TEMPDIR]"),
+    // Redact temporary paths (Linux)
     (r"/tmp/\.tmp[^/]+", "[TEMPDIR]"),
     // Redact timestamps in logs
     (r"\[\d{4}-\d{2}-\d{2}\]\[\d{2}:\d{2}:\d{2}\]", "[TIMESTAMP]"),

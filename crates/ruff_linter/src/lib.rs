@@ -5,6 +5,7 @@
 //!
 //! [Ruff]: https://github.com/astral-sh/ruff
 
+pub use checkers::ast::exposed;
 pub use locator::Locator;
 pub use noqa::generate_noqa_edits;
 #[cfg(feature = "clap")]

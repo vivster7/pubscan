@@ -1,4 +1,4 @@
-pub(crate) mod ast;
+pub mod ast;
 pub(crate) mod filesystem;
 pub(crate) mod imports;
 pub(crate) mod logical_lines;

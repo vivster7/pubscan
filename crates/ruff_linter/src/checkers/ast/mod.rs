@@ -2997,3 +2997,219 @@ pub(crate) fn check_ast(
 
     (diagnostics.into_inner(), semantic_errors.into_inner())
 }
+
+/// Public API for accessing the AST checker and its semantic model.
+pub mod exposed {
+    use std::path::Path;
+
+    use ruff_python_ast::{PySourceType, PythonVersion};
+    use ruff_python_codegen::Stylist;
+    use ruff_python_index::Indexer;
+    use ruff_python_semantic::{Module, ModuleKind, ModuleSource};
+
+    use crate::package::PackageRoot;
+    use crate::settings::{flags, LinterSettings};
+    use crate::source_kind::SourceKind;
+    use crate::Locator;
+
+    use super::*;
+
+    /// A simplified function to analyze Python source code with default settings.
+    pub fn analyze_source_code<'a>(
+        path: &'a Path,
+        package: PackageRoot<'a>,
+        source_code: &'a str,
+    ) -> Vec<TopLevelBinding> {
+        // Create a source kind from the source code
+        let source_kind =
+            SourceKind::from_source_code(source_code.to_string(), PySourceType::Python)
+                .expect("Failed to create source kind")
+                .expect("Failed to create source kind");
+
+        // Use default settings
+        let settings = LinterSettings::for_rules(Vec::new());
+
+        // Use Python 3.10 as the default version
+        let target_version = PythonVersion::PY310;
+        // Parse the source code
+        let parse_options = ruff_python_parser::ParseOptions::from(PySourceType::Python)
+            .with_target_version(target_version);
+
+        let parsed = ruff_python_parser::parse_unchecked(source_kind.source_code(), parse_options)
+            .try_into_module()
+            .expect("PySourceType always parses into a module");
+
+        // Create the locator, stylist and indexer
+        let locator = Locator::new(source_kind.source_code());
+        let stylist = Stylist::from_tokens(parsed.tokens(), locator.contents());
+        let indexer = Indexer::from_tokens(parsed.tokens(), locator.contents());
+
+        // Extract directives
+        let directives = crate::directives::extract_directives(
+            parsed.tokens(),
+            crate::directives::Flags::from_settings(&settings),
+            &locator,
+            &indexer,
+        );
+
+        let module_path = Some(package)
+            .map(PackageRoot::path)
+            .and_then(|package| to_module_path(package, path));
+
+        let module = Module {
+            kind: if path.ends_with("__init__.py") {
+                ModuleKind::Package
+            } else {
+                ModuleKind::Module
+            },
+            name: if let Some(module_path) = &module_path {
+                module_path.last().map(String::as_str)
+            } else {
+                path.file_stem().and_then(std::ffi::OsStr::to_str)
+            },
+            source: if let Some(module_path) = module_path.as_ref() {
+                ModuleSource::Path(module_path)
+            } else {
+                ModuleSource::File(path)
+            },
+            python_ast: parsed.suite(),
+        };
+
+        let allocator = typed_arena::Arena::new();
+        let mut checker = Checker::new(
+            &parsed,
+            &allocator,
+            &settings,
+            &directives.noqa_line_for,
+            flags::Noqa::Enabled,
+            path,
+            Some(package),
+            module,
+            &locator,
+            &stylist,
+            &indexer,
+            PySourceType::Python,
+            None,
+            None,
+            target_version,
+        );
+        checker.bind_builtins();
+
+        // Iterate over the AST.
+        checker.visit_module(parsed.suite());
+        checker.visit_body(parsed.suite());
+
+        // Visit any deferred syntax nodes. Take care to visit in order, such that we avoid adding
+        // new deferred nodes after visiting nodes of that kind. For example, visiting a deferred
+        // function can add a deferred lambda, but the opposite is not true.
+        checker.visit_deferred();
+        checker.visit_exports();
+
+        // Return the fully qualified names of all the top-level bindings as well as the usage count and binding kind
+        checker.get_top_level_bindings_with_usage()
+    }
+
+    /// Represents a top-level binding with its usage information
+    #[derive(Debug)]
+    pub struct TopLevelBinding {
+        /// The name of the binding
+        pub name: String,
+        /// The fully qualified name of the binding (if available)
+        pub qualified_name: Option<String>,
+        /// The number of references to this binding
+        pub usage_count: usize,
+        /// Whether the binding was imported or defined in this file
+        pub binding_type: TopLevelBindingType,
+        /// The range in the source file where this binding is defined
+        pub range: ruff_text_size::TextRange,
+        /// The kind of binding (function, class, variable, etc.)
+        pub binding_kind: BindingKindInfo,
+    }
+
+    /// The type of binding (imported or locally defined)
+    #[derive(Debug, PartialEq, Eq)]
+    pub enum TopLevelBindingType {
+        /// Binding was imported from another module
+        Imported,
+        /// Binding was defined in this file
+        LocallyDefined,
+    }
+    
+    /// Simplified version of BindingKind that's exposed publicly
+    #[derive(Debug, PartialEq, Eq)]
+    pub enum BindingKindInfo {
+        FunctionDefinition,
+        ClassDefinition,
+        Assignment,
+        NamedExprAssignment, 
+        Annotation,
+        Import,
+        FromImport,
+        SubmoduleImport,
+        Other,
+    }
+
+    impl<'a> Checker<'a> {
+        /// Returns information about all top-level bindings along with their usage count
+        pub(crate) fn get_top_level_bindings_with_usage(&self) -> Vec<TopLevelBinding> {
+            let mut result = Vec::new();
+
+            // Get the global scope to find top-level bindings
+            let global_scope = self.semantic.global_scope();
+
+            // Iterate through all bindings in the global scope
+            for (name, binding_id) in global_scope.bindings() {
+                let binding = &self.semantic.binding(binding_id);
+
+                // Create the binding info
+                let mut qualified_name = None;
+                let (binding_type, binding_kind) = match &binding.kind {
+                    BindingKind::Import(import) => {
+                        qualified_name = Some(import.qualified_name.to_string());
+                        (TopLevelBindingType::Imported, BindingKindInfo::Import)
+                    }
+                    BindingKind::FromImport(from_import) => {
+                        qualified_name = Some(from_import.qualified_name.to_string());
+                        (TopLevelBindingType::Imported, BindingKindInfo::FromImport)
+                    }
+                    BindingKind::SubmoduleImport(submodule_import) => {
+                        qualified_name = Some(submodule_import.qualified_name.to_string());
+                        (TopLevelBindingType::Imported, BindingKindInfo::SubmoduleImport)
+                    }
+                    BindingKind::FunctionDefinition(_) => {
+                        (TopLevelBindingType::LocallyDefined, BindingKindInfo::FunctionDefinition)
+                    }
+                    BindingKind::ClassDefinition(_) => {
+                        (TopLevelBindingType::LocallyDefined, BindingKindInfo::ClassDefinition)
+                    }
+                    BindingKind::Assignment => {
+                        (TopLevelBindingType::LocallyDefined, BindingKindInfo::Assignment)
+                    }
+                    BindingKind::NamedExprAssignment => {
+                        (TopLevelBindingType::LocallyDefined, BindingKindInfo::NamedExprAssignment)
+                    }
+                    BindingKind::Annotation => {
+                        (TopLevelBindingType::LocallyDefined, BindingKindInfo::Annotation)
+                    }
+                    // Skip other binding kinds like builtins
+                    _ => continue,
+                };
+
+                // Count the references to this binding
+                let usage_count = binding.references.len();
+
+                // Add to our result
+                result.push(TopLevelBinding {
+                    name: name.to_string(),
+                    qualified_name,
+                    usage_count,
+                    binding_type,
+                    range: binding.range,
+                    binding_kind,
+                });
+            }
+
+            result
+        }
+    }
+}
