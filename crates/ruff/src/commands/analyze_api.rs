@@ -201,7 +201,6 @@ impl std::fmt::Display for SymbolKind {
 pub(crate) struct DefinedSymbol {
     kind: SymbolKind,
     location: PathBuf,
-    docstring: Option<String>,
     is_public: bool,              // Based on naming convention and __all__
     fully_qualified_name: String, // Complete import path for the symbol
 }
@@ -1010,7 +1009,6 @@ fn output_results(public_api: &[ApiSymbol], args: &AnalyzeApiArgs) -> Result<()>
                 fully_qualified_name: String,
                 kind: String,
                 location: String,
-                docstring: Option<String>,
                 usage_count: usize,
                 importers: Vec<String>,
                 is_public: bool,
@@ -1024,7 +1022,6 @@ fn output_results(public_api: &[ApiSymbol], args: &AnalyzeApiArgs) -> Result<()>
                     fully_qualified_name: sym.definition.fully_qualified_name.clone(),
                     kind: sym.definition.kind.to_string(),
                     location: sym.definition.location.display().to_string(),
-                    docstring: sym.definition.docstring.clone(),
                     usage_count: sym.usage_count,
                     importers: sym
                         .importers
@@ -1104,13 +1101,7 @@ fn output_results(public_api: &[ApiSymbol], args: &AnalyzeApiArgs) -> Result<()>
                                 symbol.definition.fully_qualified_name.cyan()
                             );
 
-                            // Print docstring if available
-                            if let Some(docstring) = &symbol.definition.docstring {
-                                let docstring = docstring.trim_matches('"').trim();
-                                if !docstring.is_empty() {
-                                    println!("    {}", docstring.italic());
-                                }
-                            }
+                            // Docstring printing removed
 
                             // Print location
                             println!(
@@ -1361,8 +1352,6 @@ fn extract_candidate_symbols(
                 DefinedSymbol {
                     kind,
                     location: path.clone(),
-                    // We're no longer extracting docstrings from the source code
-                    docstring: None,
                     is_public,
                     fully_qualified_name,
                 },
@@ -1439,9 +1428,7 @@ fn get_package_components(start_dir: &Path) -> Vec<String> {
     components
 }
 
-/// Extract docstring from a body of statements
-// We no longer need the extract_docstring_from_body function since we're using 
-// the semantic model analyzer instead of manual AST traversal
+// This section previously had docstring extraction, which has been removed
 
 /// Determine the target module name from candidate symbols
 fn determine_target_module_name(candidate_symbols: &HashMap<String, DefinedSymbol>) -> String {
@@ -1597,7 +1584,6 @@ mod tests {
             DefinedSymbol {
                 kind: SymbolKind::Variable,
                 location: module_path.clone(),
-                docstring: None,
                 is_public: true,
                 fully_qualified_name: "x.y.module.my_symbol".to_string(),
             },

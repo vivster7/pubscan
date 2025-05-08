@@ -5,34 +5,34 @@ info:
   args:
     - analyze
     - api
-    - /var/folders/4z/61xpg3dn54n92mwgk9864ydw0000gn/T/.tmpPQ6pvD/src/pkg1/pkg2/__init__.py
+    - /var/folders/4z/61xpg3dn54n92mwgk9864ydw0000gn/T/.tmpQVNm2t/src/pkg1/pkg2/__init__.py
 ---
 success: true
 exit_code: 0
 ----- stdout -----
-Public API for /var/folders/4z/61xpg3dn54n92mwgk9864ydw0000gn/T/.tmpPQ6pvD/src/pkg1/pkg2/__init__.py:
+Public API for /var/folders/4z/61xpg3dn54n92mwgk9864ydw0000gn/T/.tmpQVNm2t/src/pkg1/pkg2/__init__.py:
 
 CLASS:
   SampleClass (1 external usages, public)
     Fully qualified: src.pkg1.pkg2.SampleClass
-    Location: /var/folders/4z/61xpg3dn54n92mwgk9864ydw0000gn/T/.tmpPQ6pvD/src/pkg1/pkg2/__init__.py
-    Imported by: /var/folders/4z/61xpg3dn54n92mwgk9864ydw0000gn/T/.tmpPQ6pvD/client/__init__.py
+    Location: /var/folders/4z/61xpg3dn54n92mwgk9864ydw0000gn/T/.tmpQVNm2t/src/pkg1/pkg2/__init__.py
+    Imported by: /var/folders/4z/61xpg3dn54n92mwgk9864ydw0000gn/T/.tmpQVNm2t/client/__init__.py
 
 FUNCTION:
   some_function (1 external usages, public)
     Fully qualified: src.pkg1.pkg2.some_function
-    Location: /var/folders/4z/61xpg3dn54n92mwgk9864ydw0000gn/T/.tmpPQ6pvD/src/pkg1/pkg2/__init__.py
-    Imported by: /var/folders/4z/61xpg3dn54n92mwgk9864ydw0000gn/T/.tmpPQ6pvD/client/__init__.py
+    Location: /var/folders/4z/61xpg3dn54n92mwgk9864ydw0000gn/T/.tmpQVNm2t/src/pkg1/pkg2/__init__.py
+    Imported by: /var/folders/4z/61xpg3dn54n92mwgk9864ydw0000gn/T/.tmpQVNm2t/client/__init__.py
 
 VARIABLE:
   SOME_CONSTANT (2 external usages, public)
     Fully qualified: src.pkg1.pkg2.SOME_CONSTANT
-    Location: /var/folders/4z/61xpg3dn54n92mwgk9864ydw0000gn/T/.tmpPQ6pvD/src/pkg1/pkg2/__init__.py
-    Imported by: /var/folders/4z/61xpg3dn54n92mwgk9864ydw0000gn/T/.tmpPQ6pvD/client/__init__.py
+    Location: /var/folders/4z/61xpg3dn54n92mwgk9864ydw0000gn/T/.tmpQVNm2t/src/pkg1/pkg2/__init__.py
+    Imported by: /var/folders/4z/61xpg3dn54n92mwgk9864ydw0000gn/T/.tmpQVNm2t/client/__init__.py
 
 Found 3 public API symbols with external usage.
 
 ----- stderr -----
-[2025-05-07][17:34:52][ruff::commands::analyze_api][INFO] Analyzing API for: /var/folders/4z/61xpg3dn54n92mwgk9864ydw0000gn/T/.tmpPQ6pvD/src/pkg1/pkg2/__init__.py
-[2025-05-07][17:34:52][ruff::commands::analyze_api][INFO] Using parallel processing for file analysis
-[2025-05-07][17:34:52][ruff::commands::analyze_api][INFO] Auto-detected project root: /var/folders/4z/61xpg3dn54n92mwgk9864ydw0000gn/T/.tmpPQ6pvD
+[2025-05-07][17:35:04][ruff::commands::analyze_api][INFO] Analyzing API for: /var/folders/4z/61xpg3dn54n92mwgk9864ydw0000gn/T/.tmpQVNm2t/src/pkg1/pkg2/__init__.py
+[2025-05-07][17:35:04][ruff::commands::analyze_api][INFO] Using parallel processing for file analysis
+[2025-05-07][17:35:04][ruff::commands::analyze_api][INFO] Auto-detected project root: /var/folders/4z/61xpg3dn54n92mwgk9864ydw0000gn/T/.tmpQVNm2t
